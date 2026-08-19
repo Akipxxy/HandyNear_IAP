@@ -10,7 +10,7 @@
 
 /* 1. Page Header Styling */
 .hiw-header {
-    background: linear-gradient(135deg, #1e3c72 0%, #2563EB 100%);
+    background-color: #2563EB;
     color: #ffffff;
     text-align: center;
     padding: 80px 20px;
