@@ -10,7 +10,7 @@
 
 /* 1. Page Header Styling */
 .hiw-header {
-    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+    background: linear-gradient(135deg, #1e3c72 0%, #2563EB 100%);
     color: #ffffff;
     text-align: center;
     padding: 80px 20px;
@@ -53,7 +53,7 @@
     top: -15px;
     left: 50%;
     transform: translateX(-50%);
-    background: #2a5298;
+    background: #2563EB;
     color: #fff;
     width: 35px;
     height: 35px;
@@ -67,7 +67,7 @@
 }
 .step-icon {
     font-size: 2.5rem;
-    color: #2a5298;
+    color: #2563EB;
     margin-bottom: 20px;
     margin-top: 10px;
 }
@@ -85,7 +85,7 @@
 
 /* 3. Trust Section Styling */
 .hiw-trust {
-    background-color: #2a5298;
+    background-color: #2563EB;
     color: #ffffff;
     padding: 60px 0;
 }
@@ -182,8 +182,8 @@
 }
 .accordion-item.active .toggle-icon {
     transform: rotate(180deg);
-    color: #2a5298;
+    color: #2563EB;
 }
 .accordion-item.active .accordion-header {
-    color: #2a5298;
+    color: #2563EB;
 }
