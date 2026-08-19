@@ -1,1 +1,6 @@
-# Contributors
+Contributors:
+- victormuchina
+- lancetheg
+- RuthMuthoniMacharia
+- Akipxxy
+
