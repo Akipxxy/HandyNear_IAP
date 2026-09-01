@@ -3,15 +3,7 @@ import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import './css/style.css';
 import './css/browse.css';
-
-const handymen = [
-  { id: 1, name: "John Mwangi", category: "plumbing", location: "Westlands, Nairobi", rating: 4.5, photo: "https://i.pravatar.cc/150?img=3" },
-  { id: 2, name: "Grace Wanjiru", category: "electrical", location: "Kilimani, Nairobi", rating: 4.8, photo: "https://i.pravatar.cc/150?img=5" },
-  { id: 3, name: "Peter Otieno", category: "carpentry", location: "Lavington, Nairobi", rating: 4.2, photo: "https://i.pravatar.cc/150?img=8" },
-  { id: 4, name: "Mary Achieng", category: "painting", location: "Karen, Nairobi", rating: 4.6, photo: "https://i.pravatar.cc/150?img=9" },
-  { id: 5, name: "Samuel Kiptoo", category: "general", location: "Ngong Road, Nairobi", rating: 4.0, photo: "https://i.pravatar.cc/150?img=12" },
-  { id: 6, name: "Faith Njeri", category: "plumbing", location: "South B, Nairobi", rating: 4.7, photo: "https://i.pravatar.cc/150?img=15" },
-];
+import handymen from '../data/handymen';
 
 // Builds an array of 5 star "types" (full / half / empty) from a numeric rating
 const getStarTypes = (rating) => {
@@ -83,7 +75,7 @@ const Browse = () => {
                   <span>{h.rating}</span>
                 </div>
                 <span className="verified-badge"><i className="fas fa-check-circle"></i> Verified</span>
-                <Link to="/contact" className="btn-primary">Book Now</Link>
+                <Link to={`/book/${h.id}`} className="btn-primary">Book Now</Link>
               </div>
             </div>
           ))}
