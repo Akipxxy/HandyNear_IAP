@@ -10,9 +10,11 @@
 
 2. ShieldBox needs to **read** basic booking reference data (booking ID, handyman ID, service category) in order to give context to a report at the moment it's filed, without needing real-time sync or polling.
 
-3. ShieldBox needs to **read** a handyman's flagged/report-count status (e.g., "has active reports: true/false") in order to [confirm with Team 8 — is this something *they* expose to *us*, or something *we'd* want from *them*? This one runs the opposite direction from the ring and needs to be settled before it goes in as a HandyNear-side need].
+3. ShieldBox needs to **read** a booking's date/time in order to identify which specific service visit an anonymous report refers to, when the same handyman has more than one booking on file.
 
-4. *(Add 2–3 more once you finish confirming exact scope with Team 8 — see gaps below)*
+4. ShieldBox needs to **read** a handyman's general service area (e.g., "Westlands, Nairobi") — not the customer's home address — in order to give a report geographic context without exposing private customer location data.
+
+5. ShieldBox needs to **read** a booking's completion status in order to only accept safety reports for jobs that have actually taken place, preventing reports on bookings that were requested but never fulfilled.
 
 ## Non-Functional Notes (Freshness / Volume / Auth)
 - **Freshness:** Once-per-page-load is sufficient for all of the above — no real-time requirement identified.
@@ -20,8 +22,11 @@
 - **Auth:** Booking/handyman IDs are not sensitive on their own, but should not be joinable back to customer identity — confirm with Team 8 what minimum identifier they actually need.
 
 ## Sanity Check Against Week 1 Audit
-- Handyman/Booking identifiers → ✅ maps to existing **Handymen** and **Bookings** resources in our audit.
-- Flagged/report status (statement 3) → ⚠️ does **not** map to anything in our current audit — this is a gap. Either this is something HandyNear would need to build (a new resource), or it belongs to ShieldBox's side and shouldn't be in *our* needs file at all. Flag this with your instructor per Part E.
+- Handyman/Booking identifiers (1, 2) → ✅ maps to existing **Handymen** and **Bookings** resources in our audit.
+- Booking date/time (3) → ✅ "time" is already part of the **Bookings** resource definition in our audit ("a request linking a user + handyman + service + time").
+- Handyman general service area (4) → ✅ maps to the **Handymen/Providers** resource (`location` field already exists in the Browse page data).
+- Booking completion status (5) → ✅ maps to the "Mark a booking complete" action already listed under our audited user actions.
+- Flagged/report status (original statement 3) → ❌ **resolved as dropped**, not just flagged. It doesn't map to anything in our audit — HandyNear has no "flags" or "reports" resource — and the direction was backwards anyway (a flag would be something ShieldBox computes from its own reports, not something HandyNear could ever supply). Kept in the Reflection below as a design discussion, not resubmitted as a need.
 
 ## Upstream Exploration — MoneyMentor Kenya (Informational Only, Not Graded Needs Statements)
 
