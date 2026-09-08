@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 160" width="180" height="60">
+  <circle cx="80" cy="80" r="58" fill="#2563EB"/>
+  <g transform="translate(80,80) rotate(-35)">
+    <rect x="-6" y="-34" width="12" height="42" rx="3" fill="white"/>
+    <rect x="-14" y="-40" width="28" height="14" rx="5" fill="white"/>
+    <rect x="-6" y="8" width="12" height="20" rx="3" fill="white"/>
+    <rect x="-14" y="24" width="28" height="12" rx="5" fill="white"/>
+  </g>
+  <text x="155" y="72" font-family="Poppins, sans-serif" font-size="52" font-weight="700" fill="#1F2937">Handy<tspan fill="#2563EB">Near</tspan></text>
+  <text x="157" y="108" font-family="Poppins, sans-serif" font-size="18" fill="#6B7280" letter-spacing="3">LOCAL HANDYMAN FINDER</text>
+</svg>
