@@ -132,7 +132,7 @@ const HowItWorks = () => {
                 </section>
             </main>
 
-            <Footer />
+           
         </>
     );
 };

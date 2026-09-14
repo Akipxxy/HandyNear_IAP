@@ -16,7 +16,7 @@ const Navbar = () => {
         <li><Link to="/" onClick={closeMenu}>Home</Link></li>
         <li><Link to="/browse" onClick={closeMenu}>Find a Handyman</Link></li>
         <li><Link to="/how-it-works" onClick={closeMenu}>How It Works</Link></li>
-        <li><Link to="/contact" onClick={closeMenu}>Post a Job</Link></li>
+        <li><Link to="/register" onClick={closeMenu}>Register</Link></li>
       </ul>
       <button
         className="hamburger"
