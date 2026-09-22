@@ -21,6 +21,15 @@ app.get('/handymen', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch handymen' });
   }
 });
+app.get('/bookings', async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT * FROM bookings');
+    res.status(200).json(rows);
+  } catch (err) {
+    console.error('Database error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch handymen' });
+  }
+});
 
 
 

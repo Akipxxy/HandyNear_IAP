@@ -268,6 +268,10 @@ components:
         customerPhone:
           type: string
           example: "+254798765432"
+        customerEmail:
+          type: string
+          format : email
+          example: sarah@example.com
         serviceDescription:
           type: string
           example: "Leaking kitchen sink faucet repair"

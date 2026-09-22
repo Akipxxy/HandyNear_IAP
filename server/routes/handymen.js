@@ -48,7 +48,9 @@ router.get('/',async(req, res)=>{
   try {
     const [rows] = await db.query('SELECT * FROM handymen WHERE id = ?', [handymanId]);
     if (rows.length === 0) {
-      return res.status(404).json({ error: 'Handyman not found' });
+      return res.status(404).json({ 
+        message: "RESOURCE_NOT_FOUND",
+        error: 'Handyman not found' });
     }
 
     const handyman = {

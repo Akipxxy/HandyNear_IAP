@@ -15,6 +15,10 @@
   - Added to schema as `type: string`, `format: email`.  
   - Reason: Email is required for communication with handymen and was missing from the original contract.
 
+- **customerEmail (Bookings schema)**  
+  - Added to schema as `type: string`, `format: email`.  
+  - Reason: Customer contact information needed to be complete for bookings. This ensures each booking record includes a valid email address for communication and aligns with backend changes.
+
 ### Notes
 - All new fields were mapped in backend responses to align with the contract.  
 - No breaking changes introduced; existing endpoints remain consistent.  
