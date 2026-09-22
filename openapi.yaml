@@ -3,6 +3,9 @@ info:
   title: HandyNear API (Team 7)
   version: 1.0.0
   description: Handyman service discovery and booking management API for HandyNear.
+servers:
+  - url: http://localhost:5000
+    description: Local development server
 paths:
   /api/handymen:
     get:
@@ -178,6 +181,7 @@ components:
         - serviceCategory
         - hourlyRate
         - isAvailable
+        
       properties:
         id:
           type: integer
@@ -188,6 +192,14 @@ components:
         phone:
           type: string
           example: "+254712345678"
+        email:
+          type : string
+          format: email
+          example: "johnkamau@example.com"
+        nationalID:
+          type: string
+          pattern: '^[0-9]{8,20}$'
+          exapmle: "3458933254"
         serviceCategory:
           type: string
           example: "Plumbing"
@@ -202,6 +214,9 @@ components:
         isAvailable:
           type: boolean
           example: true
+        location:
+          type: string
+          example: "Nairobi"
 
     CreateBookingRequest:
       type: object
