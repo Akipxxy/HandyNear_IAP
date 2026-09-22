@@ -3,12 +3,12 @@ const router = express.Router();
 const db = require('../db');
 //Register a handyman
 router.post('/',async(req,res)=>{
-    const { full_name, national_id, phone, email, skills, location}= req.body;
+    const { name, phone, email, national_id , service_category, hourly_rate, is_available, location}= req.body;
     console.log(req.body);
     try{
     const [result]=await db.query(
-        'INSERT INTO handymen(full_name, national_id, phone, email, skills, location)VALUES(?,?,?,?,?,?)',
-        [full_name, national_id, phone, email, skills, location]
+        'INSERT INTO handymen(name, phone, email, national_id, service_category, hourly_rate, is_available, location)VALUES(?,?,?,?,?,?,?,?)',
+        [name, phone, email, national_id, service_category, hourly_rate, is_available, location]
     );
     res.status(201).json({message: 'Handyman registered', id:result.insertId});
 }

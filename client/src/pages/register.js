@@ -5,13 +5,14 @@ import Navbar from '../components/Navbar';
 //Job posting page
 const Register = () => {
   const [formData, setFormData] = useState({
-    full_name:'',
-    national_id:'',
+    name:'',
     phone:'',
     email:'',
-    skills:'',
+    national_id:'',
+    service_category:'',
+    hourly_rate:'',
+    is_available:'',
     location:'',
-    
   });
   const [submitted, setSubmitted] = useState(false);
     const handleChange = (e) => {
@@ -30,6 +31,8 @@ const Register = () => {
      
     });
     if(response.ok)setSubmitted(true);
+    console.log('Response status:', response.status);
+
 
   }
   catch(error){
@@ -85,7 +88,7 @@ const Register = () => {
             <label>
               Full Name:
             </label>
-            <input type="text" name="full_name" value ={formData.full_name}onChange={handleChange} required />
+            <input type="text" name="name" value ={formData.name}onChange={handleChange} required />
 
             <label>
               National ID:
@@ -105,7 +108,7 @@ const Register = () => {
             <label>
               Skills (e.g., plumbing, painting):
             </label>
-             <input type="text" name="skills"value={formData.skills}onChange={handleChange} required />
+             <input type="text" name="service_category"value={formData.service_category}onChange={handleChange} required />
 
              <label>
               Location:
