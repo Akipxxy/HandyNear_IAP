@@ -24,5 +24,7 @@
 - No breaking changes introduced; existing endpoints remain consistent.  
 - Swagger UI verification confirms field names, types, and status codes match the updated contract.
 
+Week 6 Lab – Contract Deviations
 
+No changes to openapi.yaml this week. Week 6's fixes (PATCH /api/bookings/{id} implementation, request-body field casing on POST /api/bookings, validation, response shaping) were all implementation bugs — the contract itself was already correct, so the contract was left unchanged and the code was fixed to match it.
 
