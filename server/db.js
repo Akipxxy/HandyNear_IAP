@@ -1,7 +1,6 @@
 const mysql = require('mysql2');
 require('dotenv').config();
 
-
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
@@ -10,6 +9,12 @@ const pool = mysql.createPool({
   port: process.env.DB_PORT,
   waitForConnections: true,
   connectionLimit: 10,
+  timezone: 'Z',
+});
+
+// Make the database session use UTC too, so stored and returned times agree
+pool.on('connection', (connection) => {
+  connection.query("SET time_zone = '+00:00'");
 });
 
 module.exports = pool.promise();

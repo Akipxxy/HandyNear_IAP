@@ -1,278 +1,200 @@
 # HandyNear API
 
-HandyNear is a RESTful API for discovering local handymen and managing service bookings for repairs, installations, and maintenance tasks. It provides endpoints to list and view handyman profiles, create bookings, retrieve bookings, and update booking details.
+HandyNear is a REST API for discovering local handymen in Nairobi and managing service bookings (plumbing, electrical, carpentry and similar repairs). It is for developers building apps that need to list handymen, view a handyman's profile, and create or update bookings.
 
-## Table of Contents
-
-- [Overview](#overview)
-- [Authentication](#authentication)
-- [Requirements](#requirements)
-- [Run Locally](#run-locally)
-- [Quickstart](#quickstart)
-- [API Endpoints](#api-endpoints)
-- [Error Responses](#error-responses)
-- [API Documentation](#api-documentation)
-- [Troubleshooting](#troubleshooting)
-
-## Overview
-
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/handymen` | List handymen, optionally filtered by service category or availability |
-| GET | `/api/handymen/{id}` | Retrieve one handyman by ID |
-| GET | `/api/bookings` | List bookings, optionally filtered by status |
-| POST | `/api/bookings` | Create a booking |
-| GET | `/api/bookings/{id}` | Retrieve one booking by ID |
-| PATCH | `/api/bookings/{id}` | Update a booking's status or notes |
+- **Base URL (local):** `http://localhost:5000`
+- **Data format:** JSON
+- **Interactive docs:** open `docs/index.html` in a browser (generated from `openapi.yaml`)
 
 ## Authentication
 
-No authentication yet. Real auth arrives in Week 9.
+None yet. Every endpoint is open. Real authentication arrives in Week 9.
 
-## Requirements
+## Run it locally (from a clean clone)
 
-- Node.js and npm
-- MySQL or MariaDB
-- Git
-- `curl` for the quickstart example
+You need Node.js, Git, and MySQL or MariaDB (XAMPP works).
 
-## Run Locally
-
-### 1. Clone the repository
-
-Replace `<repository-url>` with your team's Git repository URL and `<repository-folder>` with the directory name created by Git:
-
+**1. Clone and install**
 ```bash
-git clone <repository-url>
-cd <repository-folder>
-```
-
-### 2. Create the database
-
-Create the database in MySQL/MariaDB if it does not already exist:
-
-```sql
-CREATE DATABASE handynear;
-```
-
-Then, from the repository root, import the schema:
-
-```bash
-mysql -u <db-user> -p handynear < schema.sql
-```
-
-Replace `<db-user>` with your database username. Enter the database password when prompted.
-
-**Important:** The supplied `schema.sql` includes sample `INSERT` statements, but the version reviewed did not contain visible `CREATE TABLE` statements. Make sure the schema file creates the required tables before importing the sample rows, otherwise a clean setup may fail.
-
-### 3. Install dependencies
-
-Move into the server directory and install dependencies:
-
-```bash
-cd server
+git clone https://github.com/Akipxxy/HandyNear_IAP.git
+cd HandyNear_IAP/server
 npm install
 ```
 
-### 4. Configure environment variables
-
-Copy the example file:
-
+**2. Create the database and sample data.** Make sure MySQL is running, then from the repo root (`HandyNear_IAP`):
 ```bash
-cp .env.example .env
+mysql -u root -p -e "source server/schema.sql"
 ```
+Press Enter at the password prompt if your root password is empty. If `mysql` is not recognized on Windows with XAMPP, use the full path: `& "C:\xampp\mysql\bin\mysql.exe" -u root -p -e "source server/schema.sql"`.
+This creates a `handynear` database with 3 handymen and 2 bookings.
 
-On Windows Command Prompt, use:
-
-```bat
-copy .env.example .env
+**3. Configure environment variables**
+```bash
+cd server
+cp .env.example .env          # Windows Command Prompt: copy .env.example .env
 ```
-
-Open `server/.env` and fill in the values for your local setup. The expected variable names are:
-
-```env
+Open `server/.env` and set:
+```
 DB_HOST=localhost
-DB_USER=your_database_username
-DB_PASSWORD=your_database_password
+DB_USER=root
+DB_PASSWORD=
 DB_NAME=handynear
 DB_PORT=3306
 PORT=5000
 ```
+Use your own MySQL user, password and port if they differ.
 
-These are example local values; use the actual credentials and port for your MySQL/MariaDB installation. Never commit or share your real `.env` file.
-
-### 5. Start the server
-
-From the `server` directory, run:
-
+**4. Start the server** (from `server/`)
 ```bash
 npm start
 ```
-
-The supplied `package.json` defines this command as `node index.js`. If the server starts successfully on port 5000, the local API base URL is `http://localhost:5000`.
+You should see `Server running on http://localhost:5000`.
 
 ## Quickstart
 
-Once the API server is running locally, execute:
-
+In a second terminal:
 ```bash
 curl http://localhost:5000/api/handymen
 ```
+(On Windows PowerShell, use `curl.exe` instead of `curl`.)
 
-A successful response should be a JSON array of handyman objects. The exact response depends on the data in your database. The following is an **illustrative response shape**, not a captured live response:
-
+Response (`200 OK`):
 ```json
 [
-  {
-    "id": 12,
-    "name": "John Kamau",
-    "serviceCategory": "Plumbing",
-    "hourlyRate": 1500,
-    "isAvailable": true,
-    "location": "Nairobi"
-  }
+  {"id":1,"name":"John Mwangi","phone":"+254712345678","email":"john@example.com","nationalId":"12345678","serviceCategory":"Plumbing","hourlyRate":1500,"rating":4.5,"isAvailable":true,"location":"Westlands, Nairobi"},
+  {"id":2,"name":"Grace Wanjiru","phone":"+254723456789","email":"grace@example.com","nationalId":"23456789","serviceCategory":"Electrical","hourlyRate":1800,"rating":4.8,"isAvailable":true,"location":"Kilimani, Nairobi"},
+  {"id":3,"name":"Peter Otieno","phone":"+254734567890","email":"peter@example.com","nationalId":"34567890","serviceCategory":"Carpentry","hourlyRate":1200,"rating":4.2,"isAvailable":false,"location":"Lavington, Nairobi"}
 ]
 ```
 
-Before submitting, run this command against your API and replace the illustrative body with the actual response.
+## Try the live API
 
-## API Endpoints
+While the team is running a test, the API is also reachable at:
 
-All paths below are relative to `http://localhost:5000`.
+```
+https://REPLACE-WITH-TUNNEL-URL
+```
 
-### 1. List handymen
+```bash
+curl https://REPLACE-WITH-TUNNEL-URL/api/handymen
+```
 
-`GET /api/handymen`
+The live URL only works while the team's server and tunnel are running.
 
-Optional query parameters:
-- `serviceCategory` — filter by service category, e.g. `Plumbing`
-- `available` — filter by availability, e.g. `true`
+## Endpoints
 
-Example:
+Run the examples in order; later ones depend on earlier ones. All paths are relative to the base URL.
+
+### GET /api/handymen
+List handymen. Optional query parameters: `serviceCategory` (e.g. `Plumbing`) and `available` (`true` or `false`).
 
 ```bash
 curl "http://localhost:5000/api/handymen?serviceCategory=Plumbing&available=true"
 ```
+Response `200`: an array of handyman objects in the same shape as the Quickstart. Returns `[]` if nothing matches.
 
-Expected success status in the OpenAPI contract: `200 OK`.
+### GET /api/handymen/{id}
+```bash
+curl http://localhost:5000/api/handymen/1
+```
+Response `200`:
+```json
+{"id":1,"name":"John Mwangi","phone":"+254712345678","email":"john@example.com","nationalId":"12345678","serviceCategory":"Plumbing","hourlyRate":1500,"rating":4.5,"isAvailable":true,"location":"Westlands, Nairobi"}
+```
+An unknown id returns `404` (see Errors).
 
-### 2. Get a handyman by ID
-
-`GET /api/handymen/{id}`
-
-Example:
+### GET /api/bookings
+List bookings. Optional query parameter `status`: `pending`, `confirmed`, `completed` or `cancelled`.
 
 ```bash
-curl http://localhost:5000/api/handymen/12
+curl http://localhost:5000/api/bookings
 ```
-
-Expected success status: `200 OK`. A missing handyman is documented as `404 Not Found`.
-
-### 3. List bookings
-
-`GET /api/bookings`
-
-Optional query parameter `status` accepts `pending`, `confirmed`, `completed`, or `cancelled`.
-
-Example:
-
-```bash
-curl "http://localhost:5000/api/bookings?status=confirmed"
+Response `200`:
+```json
+[
+  {"id":1,"handymanId":1,"customerName":"Sarah Mwangi","customerPhone":"+254798765432","customerEmail":"sarah@example.com","serviceDescription":"Leaking kitchen sink faucet repair","scheduledTime":"2026-10-20T14:30:00.000Z","status":"confirmed","notes":null,"createdAt":"2026-10-14T06:34:07.000Z"},
+  {"id":2,"handymanId":2,"customerName":"David Kamau","customerPhone":"+254701234567","customerEmail":"david@example.com","serviceDescription":"Install ceiling light fittings","scheduledTime":"2026-10-22T10:00:00.000Z","status":"pending","notes":null,"createdAt":"2026-10-14T06:34:07.000Z"}
+]
 ```
+`createdAt` will show the time you ran the schema import.
 
-Expected success status: `200 OK`.
+### POST /api/bookings
+Create a booking. Required body fields: `handymanId` (number), `customerName`, `customerPhone`, `serviceDescription`, `scheduledTime` (ISO 8601 date-time). Optional: `customerEmail`. New bookings always start with status `pending`.
 
-### 4. Create a booking
-
-`POST /api/bookings`
-
-Send JSON with `handymanId`, `customerName`, `customerPhone`, `serviceDescription`, and `scheduledTime`.
-
+Mac/Linux:
 ```bash
 curl -X POST http://localhost:5000/api/bookings \
   -H "Content-Type: application/json" \
-  -d '{
-    "handymanId": 12,
-    "customerName": "Sarah Mwangi",
-    "customerPhone": "+254798765432",
-    "serviceDescription": "Leaking kitchen sink faucet repair",
-    "scheduledTime": "2026-10-20T14:30:00Z"
-  }'
+  -d '{"handymanId":1,"customerName":"Test User","customerPhone":"+254700000000","serviceDescription":"Fix leaking tap","scheduledTime":"2026-10-25T10:00:00Z"}'
 ```
 
-Expected success status: `201 Created`. Confirm the exact returned fields and values against the running API.
+Windows PowerShell (PowerShell removes quotes inside `-d "..."`, so send the body from a file):
+```powershell
+curl.exe -X POST http://localhost:5000/api/bookings -H "Content-Type: application/json" -d "@examples/post-booking.json"
+```
+Run it from the repo root.
 
-### 5. Get a booking by ID
-
-`GET /api/bookings/{id}`
-
-```bash
-curl http://localhost:5000/api/bookings/101
+Response `201 Created`:
+```json
+{"id":3,"handymanId":1,"customerName":"Test User","customerPhone":"+254700000000","customerEmail":null,"serviceDescription":"Fix leaking tap","scheduledTime":"2026-10-25T10:00:00.000Z","status":"pending","notes":null,"createdAt":"2026-10-14T06:55:44.000Z"}
 ```
 
-Expected success status: `200 OK`. A missing booking is documented as `404 Not Found`.
-
-### 6. Update a booking
-
-`PATCH /api/bookings/{id}`
-
-The OpenAPI contract documents `status` and `notes` as update fields:
-
+### GET /api/bookings/{id}
 ```bash
-curl -X PATCH http://localhost:5000/api/bookings/101 \
+curl http://localhost:5000/api/bookings/1
+```
+Response `200`: a single booking object, same shape as the list items. An unknown id returns `404`.
+
+### PATCH /api/bookings/{id}
+Update a booking's `status` and/or `notes`. Send at least one.
+
+Mac/Linux:
+```bash
+curl -X PATCH http://localhost:5000/api/bookings/1 \
   -H "Content-Type: application/json" \
-  -d '{
-    "status": "completed",
-    "notes": "Work completed ahead of schedule."
-  }'
+  -d '{"status":"completed"}'
 ```
 
-Expected success status: `200 OK`. Confirm that the booking ID exists before running this example.
+Windows PowerShell (from the repo root):
+```powershell
+curl.exe -X PATCH http://localhost:5000/api/bookings/1 -H "Content-Type: application/json" -d "@examples/patch-booking.json"
+```
 
-## Error Responses
-
-The OpenAPI contract defines an error object containing `code` and `message`.
-
-### 404 Not Found
-
-Illustrative response shape:
-
+Response `200`:
 ```json
-{
-  "code": "RESOURCE_NOT_FOUND",
-  "message": "The requested resource could not be found."
-}
+{"id":1,"handymanId":1,"customerName":"Sarah Mwangi","customerPhone":"+254798765432","customerEmail":"sarah@example.com","serviceDescription":"Leaking kitchen sink faucet repair","scheduledTime":"2026-10-20T14:30:00.000Z","status":"completed","notes":null,"createdAt":"2026-10-14T06:34:07.000Z"}
 ```
 
-### 400 Bad Request
+## Errors
 
-The OpenAPI contract documents `400` for invalid query parameters or invalid booking requests. Illustrative response shape:
+Every error is JSON with a `code` and a `message`. A success response never has a `code` field.
 
+**404 Not Found** (`GET /api/handymen/999`):
 ```json
-{
-  "code": "VALIDATION_ERROR",
-  "message": "The request contains invalid or missing fields."
-}
+{"code":"RESOURCE_NOT_FOUND","message":"Handyman not found"}
+```
+For bookings the message is `"Booking not found"`.
+
+**400 Validation error** (`POST /api/bookings` with an empty body `{}`):
+```json
+{"code":"VALIDATION_ERROR","message":"handymanId, customerName, customerPhone, serviceDescription, and scheduledTime are required"}
+```
+Other validation messages: `"handymanId must be a number"`, `"status must be one of: pending, confirmed, completed, cancelled"`, and `"at least one of status or notes must be provided"`.
+
+**400 Invalid query parameter** (for example `GET /api/bookings?status=banana`):
+```json
+{"code":"INVALID_QUERY_PARAM","message":"status must be one of: pending, confirmed, completed, cancelled"}
 ```
 
-The 400 message above is an example, not a verified runtime message. Check the running API and replace it with the exact response. Confirm that the implementation uses `VALIDATION_ERROR` for these cases.
-
-## API Documentation
-
-The OpenAPI contract is in `openapi.yaml`. From the repository root, generate a Redoc HTML page with:
-
-```bash
-npx @redocly/cli build-docs openapi.yaml -o docs/index.html
+**400 Invalid JSON** (body is not valid JSON):
+```json
+{"code":"INVALID_JSON","message":"Request body is not valid JSON"}
 ```
-
-Open `docs/index.html` in a browser and verify that all six operations appear with their request and response schemas.
 
 ## Troubleshooting
 
-- **Connection refused:** Make sure the server is running on port `5000`.
-- **Database connection error:** Check that MySQL/MariaDB is running and the `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, and `DB_PORT` values in `server/.env` are correct.
-- **Missing table error:** Confirm that `schema.sql` creates the required tables before inserting sample rows.
-- **Missing module error:** Run `npm install` from the `server` directory.
-- **404 response:** Check the endpoint path and resource ID.
-- **400 response:** Check JSON syntax, required fields, and allowed booking statuses.
-
+- **Connection refused:** the server is not running. Start it with `npm start` in `server/`.
+- **`{"error":"Failed to fetch handymen"}` or database errors:** check that MySQL is running and the values in `server/.env` match your database. Restart the server after editing `.env`.
+- **`mysql` not recognized (Windows):** use the full path to `mysql.exe`, for example `C:\xampp\mysql\bin\mysql.exe`.
+- **`ASCII '\0'` error when importing the schema:** `schema.sql` must be saved as UTF-8, not UTF-16.
+- **Invalid JSON error on Windows:** use the `-d "@examples/..."` file form shown above.

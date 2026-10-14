@@ -1,0 +1,7 @@
+{
+  "handymanId": 1,
+  "customerName": "Test User",
+  "customerPhone": "+254700000000",
+  "serviceDescription": "Fix leaking tap",
+  "scheduledTime": "2026-10-25T10:00:00Z"
+}

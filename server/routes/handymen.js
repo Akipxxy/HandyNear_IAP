@@ -12,7 +12,7 @@ function toHandymanResponse(row) {
     nationalId: row.national_id,
     serviceCategory: row.service_category,
     hourlyRate: parseFloat(row.hourly_rate),
-    rating: row.rating,
+    rating: row.rating === null ? null : parseFloat(row.rating),
     isAvailable: Boolean(row.is_available),
     location: row.location
   };
