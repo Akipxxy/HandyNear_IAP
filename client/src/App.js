@@ -5,6 +5,7 @@ import HowItWorks from './pages/how-it-works';
 import Register from './pages/register';
 import Footer from './components/Footer';
 import Home from './pages/home';
+import HandyNearDashboard from './HandyNearDashboard';
 
 //Main app containing all pages
 const App = () => {
@@ -16,7 +17,7 @@ const App = () => {
         <Route path="/browse" element={<Browse />} />
         <Route path="/how-it-works" element={<HowItWorks />} />
         <Route path="/register" element={<Register />} />
-        
+        <Route path="/dashboard" element={<HandyNearDashboard />} />
       </Routes>
       <Footer/>
       </div>

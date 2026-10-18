@@ -28,3 +28,19 @@ Week 6 Lab – Contract Deviations
 
 No changes to openapi.yaml this week. Week 6's fixes (PATCH /api/bookings/{id} implementation, request-body field casing on POST /api/bookings, validation, response shaping) were all implementation bugs — the contract itself was already correct, so the contract was left unchanged and the code was fixed to match it.
 
+
+## Week 8 Lab – Contract Deviations
+
+### Added query parameter
+- **`handymanId` on `GET /api/bookings`**
+  - Added as an optional query parameter (`type: integer`) that returns only the bookings for that handyman. A `400` response (`INVALID_QUERY_PARAM`) was added for a non-integer value.
+  - Reason: our downstream partner ShieldBox needs to list a specific handyman's completed bookings (Needs 3 and 5 in `API_NEEDS.md`). The planned `GET /handymen/{id}/bookings?status=completed` was not in the contract or the code. It is now covered by `GET /api/bookings?handymanId=12&status=completed`, with no new path.
+
+### Corrected field name and typo
+- **`nationalID` renamed to `nationalId`** in the `Handyman` schema.
+  - Reason: the contract and the implementation disagreed. The API has always returned `nationalId`, and Week 5's deviation log already called it `nationalId`. The contract was corrected to match the code.
+- **`exapmle` corrected to `example`** in the same property, so tooling recognises the example value.
+
+### Notes
+- No breaking changes for existing consumers. The new parameter is optional, and the corrected field name matches what the API already returns.
+- `docs/index.html` was rebuilt from the updated `openapi.yaml`.

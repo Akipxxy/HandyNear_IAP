@@ -83,8 +83,7 @@ const Browse = () => {
                   <span>{h.rating}</span>
                 </div>
                 <span className="verified-badge"><i className="fas fa-check-circle"></i> Verified</span>
-                <Link to="/contact" className="btn-primary">Book Now</Link>
-              </div>
+                <Link to="/dashboard" className="btn-primary">Book Now</Link>              </div>
             </div>
           ))}
         </div>

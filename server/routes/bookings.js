@@ -61,9 +61,9 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Get all bookings — supports the contract's status filter
+// Get all bookings — supports the contract's status and handymanId filters
 router.get('/', async (req, res) => {
-  const { status } = req.query;
+  const { status, handymanId } = req.query;
 
   if (status !== undefined && !ALLOWED_STATUSES.includes(status)) {
     return res.status(400).json({
@@ -72,13 +72,30 @@ router.get('/', async (req, res) => {
     });
   }
 
+  if (handymanId !== undefined && !/^\d+$/.test(handymanId)) {
+    return res.status(400).json({
+      code: 'INVALID_QUERY_PARAM',
+      message: 'handymanId must be a positive integer'
+    });
+  }
+
   try {
     let sql = 'SELECT * FROM bookings';
+    const conditions = [];
     const params = [];
+
     if (status) {
-      sql += ' WHERE status = ?';
+      conditions.push('status = ?');
       params.push(status);
     }
+    if (handymanId !== undefined) {
+      conditions.push('handyman_id = ?');
+      params.push(Number(handymanId));
+    }
+    if (conditions.length > 0) {
+      sql += ' WHERE ' + conditions.join(' AND ');
+    }
+
     const [rows] = await db.query(sql, params);
     res.status(200).json(rows.map(toBookingResponse));
   } catch (err) {

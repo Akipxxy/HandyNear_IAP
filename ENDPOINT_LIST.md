@@ -8,13 +8,13 @@ left out and why.
 |---|---|---|---|
 | GET | `/handymen/{id}` | Return a single handyman's public profile — id, service category, general service area. Does **not** include customer identity. | Need 1 (unique profile identifier); Need 4 (general service area, not customer address) |
 | GET | `/bookings/{id}` | Direct lookup of one booking's reference data — booking id, handyman id, service category, completion status — for a reporter who already has a specific booking reference (e.g. from a receipt). | Need 2 (booking reference data at time of filing); Need 5 (completion status) |
-| GET | `/handymen/{id}/bookings?status=completed` | List a handyman's completed bookings, each with its date/time, so a reporter who only knows the handyman (not a specific booking ID) can identify the correct visit. `status` is a query parameter, not a path segment, since it filters an existing collection rather than naming a distinct resource. | Need 3 (disambiguate between multiple bookings by date/time); Need 5 (only completed jobs are reportable — enforced here via the filter rather than client-side) |
+| GET | `/api/bookings?handymanId={id}&status=completed` | List a handyman's completed bookings, each with its date/time, so a reporter who only knows the handyman (not a specific booking ID) can identify the correct visit. Both `handymanId` and `status` are query parameters because they filter the bookings collection rather than naming a separate resource. Example: `GET /api/bookings?handymanId=12&status=completed`. | Need 3 (disambiguate between multiple bookings by date/time); Need 5 (only completed jobs are reportable, enforced here via the filter rather than client-side) |
 
 ## REST checklist self-audit
 - **Nouns, not verbs:** `/handymen`, `/bookings` — no `/getHandyman` or `/checkBooking`.
 - **Correct verb:** all three are GET, and that's accurate — every underlying need is a read, not an invention.
 - **Pluralization:** `handymen` / `bookings` used consistently across all three rows.
-- **Nesting:** one level max (`/handymen/{id}/bookings`), and it's a genuine ownership relationship — a booking only exists in the context of a handyman, so nesting is right here, not a query param.
+- **Nesting:** none needed. The handyman-to-bookings relationship is expressed as a query filter (`handymanId`) on the bookings collection, so every path is one level deep.
 - **Path vs. query:** identifiers (`{id}`) are in the path; `status` is a filter, so it's a query parameter, not nested.
 - **No caller-specific logic:** nothing here says `?shieldbox=true` or bakes ShieldBox's identity into the URL — these are generic reads any authorized consumer could call.
 

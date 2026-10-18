@@ -78,6 +78,13 @@ paths:
             enum: [pending, confirmed, completed, cancelled]
             example: "confirmed"
           description: Filter bookings by lifecycle status.
+        - name: handymanId
+          in: query
+          required: false
+          schema:
+            type: integer
+            example: 12
+          description: Return only bookings for this handyman.
       responses:
         '200':
           description: List of bookings.
@@ -196,10 +203,10 @@ components:
           type : string
           format: email
           example: "johnkamau@example.com"
-        nationalID:
+        nationalId:
           type: string
           pattern: '^[0-9]{8,20}$'
-          exapmle: "3458933254"
+          example: "3458933254"
         serviceCategory:
           type: string
           example: "Plumbing"

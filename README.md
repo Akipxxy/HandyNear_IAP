@@ -72,11 +72,11 @@ Response (`200 OK`):
 While the team is running a test, the API is also reachable at:
 
 ```
-https://REPLACE-WITH-TUNNEL-URL
+https://miracle-encountered-prices-requiring.trycloudflare.com
 ```
 
 ```bash
-curl https://REPLACE-WITH-TUNNEL-URL/api/handymen
+curl https://miracle-encountered-prices-requiring.trycloudflare.com
 ```
 
 The live URL only works while the team's server and tunnel are running.

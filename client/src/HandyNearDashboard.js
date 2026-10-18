@@ -1,6 +1,15 @@
 import { useState, useEffect } from 'react';
+import Navbar from './components/Navbar';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
+const emptyForm = {
+  handymanId: '',
+  customerName: '',
+  customerPhone: '',
+  serviceDescription: '',
+  scheduledTime: '',
+};
 
 function HandyNearDashboard() {
   const [handymen, setHandymen] = useState([]);
@@ -9,14 +18,7 @@ function HandyNearDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const [formData, setFormData] = useState({
-    handyman: '',
-    customer_name: '',
-    phone: '',
-    category: '',
-    booking_datetime: '',
-    status: 'pending',
-  });
+  const [formData, setFormData] = useState(emptyForm);
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -44,21 +46,7 @@ function HandyNearDashboard() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    
-    // Auto-fill category when a handyman is selected from dropdown
-    if (name === 'handyman') {
-      const selected = handymen.find((h) => h.name === value);
-      setFormData((prev) => ({
-        ...prev,
-        handyman: value,
-        category: selected ? selected.category : prev.category,
-      }));
-    } else {
-      setFormData((prev) => ({
-        ...prev,
-        [name]: value,
-      }));
-    }
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
@@ -67,30 +55,29 @@ function HandyNearDashboard() {
     setSubmitting(true);
 
     try {
+      // Shape the payload exactly like the API contract's CreateBookingRequest
+      const payload = {
+        handymanId: Number(formData.handymanId),
+        customerName: formData.customerName,
+        customerPhone: formData.customerPhone,
+        serviceDescription: formData.serviceDescription,
+        scheduledTime: new Date(formData.scheduledTime).toISOString(),
+      };
+
       const res = await fetch(`${API_URL}/api/bookings`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || 'Failed to submit booking');
+        throw new Error(data.message || 'Failed to submit booking');
       }
 
       const newBooking = await res.json();
       setBookings((prev) => [...prev, newBooking]);
-
-      setFormData({
-        handyman: '',
-        customer_name: '',
-        phone: '',
-        category: '',
-        booking_datetime: '',
-        status: 'pending',
-      });
+      setFormData(emptyForm);
     } catch (err) {
       setFormError(err.message);
     } finally {
@@ -98,201 +85,215 @@ function HandyNearDashboard() {
     }
   };
 
-  if (loading) return <p style={{ padding: '20px' }}>Loading HandyNear database...</p>;
-  if (error) return <p style={{ padding: '20px', color: 'red' }}>Error: {error}</p>;
+  const handymanName = (id) => {
+    const h = handymen.find((x) => x.id === id);
+    return h ? h.name : `#${id}`;
+  };
 
-  const filteredHandymen = handymen.filter((h) =>
-    h.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    h.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    h.location.toLowerCase().includes(searchTerm.toLowerCase())
+  if (loading) {
+    return (
+      <>
+        <Navbar />
+        <p style={{ padding: '20px' }}>Loading HandyNear data...</p>
+      </>
+    );
+  }
+  if (error) {
+    return (
+      <>
+        <Navbar />
+        <p style={{ padding: '20px', color: 'red' }}>
+          Error: {error}. Is the API running on {API_URL}?
+        </p>
+      </>
+    );
+  }
+
+  const term = searchTerm.toLowerCase();
+  const filteredHandymen = handymen.filter(
+    (h) =>
+      (h.name || '').toLowerCase().includes(term) ||
+      (h.serviceCategory || '').toLowerCase().includes(term) ||
+      (h.location || '').toLowerCase().includes(term)
   );
 
+  const statusColor = (status) =>
+    status === 'completed' ? '#28a745'
+    : status === 'confirmed' ? '#0066cc'
+    : status === 'pending' ? '#ffc107'
+    : '#dc3545';
+
   return (
-    <div style={{ padding: '24px', fontFamily: 'sans-serif', maxWidth: '1000px', margin: '0 auto' }}>
-      <h1 style={{ borderBottom: '2px solid #333', paddingBottom: '10px' }}>HandyNear Management Dashboard</h1>
+    <>
+      <Navbar />
+      <div style={{ padding: '24px', fontFamily: 'sans-serif', maxWidth: '1000px', margin: '0 auto' }}>
+        <h1 style={{ borderBottom: '2px solid #333', paddingBottom: '10px' }}>
+          HandyNear Dashboard
+        </h1>
 
-      {/* Booking Submission Form */}
-      <h2>Create New Booking</h2>
-      {formError && <p style={{ color: 'red' }}>{formError}</p>}
-      <form onSubmit={handleSubmit} style={{ marginBottom: '36px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-        <select
-          name="handyman"
-          value={formData.handyman}
-          onChange={handleInputChange}
-          required
-          style={{ padding: '8px' }}
+        <h2>Create New Booking</h2>
+        {formError && <p style={{ color: 'red' }}>{formError}</p>}
+        <form
+          onSubmit={handleSubmit}
+          style={{ marginBottom: '36px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}
         >
-          <option value="">Select Handyman</option>
-          {handymen.map((h) => (
-            <option key={h.id} value={h.name}>
-              {h.name} ({h.category})
-            </option>
-          ))}
-        </select>
+          <select
+            name="handymanId"
+            value={formData.handymanId}
+            onChange={handleInputChange}
+            required
+            style={{ padding: '8px' }}
+          >
+            <option value="">Select Handyman</option>
+            {handymen.map((h) => (
+              <option key={h.id} value={h.id}>
+                {h.name} ({h.serviceCategory})
+              </option>
+            ))}
+          </select>
 
+          <input
+            type="text"
+            name="customerName"
+            placeholder="Customer Name"
+            value={formData.customerName}
+            onChange={handleInputChange}
+            required
+            style={{ padding: '8px' }}
+          />
+
+          <input
+            type="tel"
+            name="customerPhone"
+            placeholder="Phone (e.g. +254712345678)"
+            value={formData.customerPhone}
+            onChange={handleInputChange}
+            required
+            style={{ padding: '8px' }}
+          />
+
+          <input
+            type="text"
+            name="serviceDescription"
+            placeholder="What needs fixing?"
+            value={formData.serviceDescription}
+            onChange={handleInputChange}
+            required
+            style={{ padding: '8px', minWidth: '220px' }}
+          />
+
+          <input
+            type="datetime-local"
+            name="scheduledTime"
+            value={formData.scheduledTime}
+            onChange={handleInputChange}
+            required
+            style={{ padding: '8px' }}
+          />
+
+          <button
+            type="submit"
+            disabled={submitting}
+            style={{ padding: '8px 18px', cursor: 'pointer', background: '#0066cc', color: '#fff', border: 'none', borderRadius: '4px' }}
+          >
+            {submitting ? 'Booking...' : 'Add Booking'}
+          </button>
+        </form>
+
+        <h2>Available Handymen</h2>
         <input
           type="text"
-          name="customer_name"
-          placeholder="Customer Name"
-          value={formData.customer_name}
-          onChange={handleInputChange}
-          required
-          style={{ padding: '8px' }}
+          placeholder="Filter by name, category, or location..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          style={{ marginBottom: '16px', padding: '8px', width: '320px', fontSize: '14px' }}
         />
 
-        <input
-          type="tel"
-          name="phone"
-          placeholder="Phone Number (e.g. 0712...)"
-          value={formData.phone}
-          onChange={handleInputChange}
-          required
-          style={{ padding: '8px' }}
-        />
-
-        <input
-          type="text"
-          name="category"
-          placeholder="Category"
-          value={formData.category}
-          onChange={handleInputChange}
-          required
-          readOnly
-          style={{ padding: '8px', background: '#eee', cursor: 'not-allowed' }}
-        />
-
-        <input
-          type="datetime-local"
-          name="booking_datetime"
-          value={formData.booking_datetime}
-          onChange={handleInputChange}
-          required
-          style={{ padding: '8px' }}
-        />
-
-        <select
-          name="status"
-          value={formData.status}
-          onChange={handleInputChange}
-          style={{ padding: '8px' }}
-        >
-          <option value="pending">Pending</option>
-          <option value="completed">Completed</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
-
-        <button
-          type="submit"
-          disabled={submitting}
-          style={{ padding: '8px 18px', cursor: 'pointer', background: '#0066cc', color: '#fff', border: 'none', borderRadius: '4px' }}
-        >
-          {submitting ? 'Booking...' : 'Add Booking'}
-        </button>
-      </form>
-
-      {/* Handymen Table */}
-      <h2>Available Handymen</h2>
-      <input
-        type="text"
-        placeholder="Filter by name, category, or location..."
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-        style={{
-          marginBottom: '16px',
-          padding: '8px',
-          width: '320px',
-          fontSize: '14px',
-        }}
-      />
-
-      <table border="1" cellPadding="8" style={{ borderCollapse: 'collapse', width: '100%', marginBottom: '40px' }}>
-        <thead style={{ background: '#f0f0f0' }}>
-          <tr>
-            <th>ID</th>
-            <th>Name</th>
-            <th>Category</th>
-            <th>Location</th>
-            <th>Rating</th>
-            <th>Base Rate (KES)</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredHandymen.length > 0 ? (
-            filteredHandymen.map((h) => (
-              <tr key={h.id}>
-                <td>{h.id}</td>
-                <td>{h.name}</td>
-                <td>{h.category}</td>
-                <td>{h.location}</td>
-                <td>⭐ {h.rating}</td>
-                <td>KES {Number(h.base_rate).toLocaleString()}</td>
-              </tr>
-            ))
-          ) : (
+        <table border="1" cellPadding="8" style={{ borderCollapse: 'collapse', width: '100%', marginBottom: '40px' }}>
+          <thead style={{ background: '#f0f0f0' }}>
             <tr>
-              <td colSpan="6" style={{ textAlign: 'center' }}>
-                No handymen match that search.
-              </td>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Category</th>
+              <th>Location</th>
+              <th>Rating</th>
+              <th>Rate (KES/hr)</th>
+              <th>Available</th>
             </tr>
-          )}
-        </tbody>
-      </table>
-
-      {/* Bookings Table */}
-      <h2>Current Bookings</h2>
-      <table border="1" cellPadding="8" style={{ borderCollapse: 'collapse', width: '100%' }}>
-        <thead style={{ background: '#f0f0f0' }}>
-          <tr>
-            <th>ID</th>
-            <th>Handyman</th>
-            <th>Customer Name</th>
-            <th>Phone</th>
-            <th>Category</th>
-            <th>Booking Date & Time</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {bookings.length > 0 ? (
-            bookings.map((b) => (
-              <tr key={b.id}>
-                <td>{b.id}</td>
-                <td>{b.handyman}</td>
-                <td>{b.customer_name}</td>
-                <td>{b.phone}</td>
-                <td>{b.category}</td>
-                <td>{new Date(b.booking_datetime).toLocaleString()}</td>
-                <td>
-                  <span
-                    style={{
-                      padding: '4px 8px',
-                      borderRadius: '4px',
-                      color: '#fff',
-                      backgroundColor:
-                        b.status === 'completed'
-                          ? '#28a745'
-                          : b.status === 'pending'
-                          ? '#ffc107'
-                          : '#dc3545',
-                      fontWeight: 'bold',
-                      fontSize: '12px',
-                    }}
-                  >
-                    {b.status}
-                  </span>
+          </thead>
+          <tbody>
+            {filteredHandymen.length > 0 ? (
+              filteredHandymen.map((h) => (
+                <tr key={h.id}>
+                  <td>{h.id}</td>
+                  <td>{h.name}</td>
+                  <td>{h.serviceCategory}</td>
+                  <td>{h.location}</td>
+                  <td>{h.rating != null ? `⭐ ${h.rating}` : '-'}</td>
+                  <td>{Number(h.hourlyRate).toLocaleString()}</td>
+                  <td>{h.isAvailable ? 'Yes' : 'No'}</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="7" style={{ textAlign: 'center' }}>
+                  No handymen match that search.
                 </td>
               </tr>
-            ))
-          ) : (
+            )}
+          </tbody>
+        </table>
+
+        <h2>Current Bookings</h2>
+        <table border="1" cellPadding="8" style={{ borderCollapse: 'collapse', width: '100%' }}>
+          <thead style={{ background: '#f0f0f0' }}>
             <tr>
-              <td colSpan="7" style={{ textAlign: 'center' }}>
-                No bookings registered yet.
-              </td>
+              <th>ID</th>
+              <th>Handyman</th>
+              <th>Customer</th>
+              <th>Phone</th>
+              <th>Service</th>
+              <th>Scheduled</th>
+              <th>Status</th>
             </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {bookings.length > 0 ? (
+              bookings.map((b) => (
+                <tr key={b.id}>
+                  <td>{b.id}</td>
+                  <td>{handymanName(b.handymanId)}</td>
+                  <td>{b.customerName}</td>
+                  <td>{b.customerPhone}</td>
+                  <td>{b.serviceDescription}</td>
+                  <td>{new Date(b.scheduledTime).toLocaleString()}</td>
+                  <td>
+                    <span
+                      style={{
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        color: '#fff',
+                        backgroundColor: statusColor(b.status),
+                        fontWeight: 'bold',
+                        fontSize: '12px',
+                      }}
+                    >
+                      {b.status}
+                    </span>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="7" style={{ textAlign: 'center' }}>
+                  No bookings registered yet.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }
 
