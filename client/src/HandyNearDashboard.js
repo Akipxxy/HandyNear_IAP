@@ -22,6 +22,10 @@ function HandyNearDashboard() {
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // MoneyMentor (partner) data. Kept separate so a partner failure never breaks the dashboard.
+  const [goals, setGoals] = useState(null);
+  const [goalsError, setGoalsError] = useState('');
+
   useEffect(() => {
     Promise.all([
       fetch(`${API_URL}/api/handymen`).then((res) => {
@@ -42,6 +46,15 @@ function HandyNearDashboard() {
         setError(err.message);
         setLoading(false);
       });
+
+    // Our own backend calls MoneyMentor. The browser never sees the partner's token.
+    fetch(`${API_URL}/api/partner/savings-goals`)
+      .then((res) => {
+        if (!res.ok) throw new Error('Partner data is unavailable right now');
+        return res.json();
+      })
+      .then(setGoals)
+      .catch((err) => setGoalsError(err.message));
   }, []);
 
   const handleInputChange = (e) => {
@@ -61,7 +74,7 @@ function HandyNearDashboard() {
         customerName: formData.customerName,
         customerPhone: formData.customerPhone,
         serviceDescription: formData.serviceDescription,
-        scheduledTime: new Date(formData.scheduledTime).toISOString(),
+        scheduledTime: new Date(formData.scheduledTime).toISOString().replace(/\.\d{3}Z$/, 'Z'),
       };
 
       const res = await fetch(`${API_URL}/api/bookings`, {
@@ -72,7 +85,7 @@ function HandyNearDashboard() {
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.message || 'Failed to submit booking');
+        throw new Error(data.message || data.error || 'Failed to submit booking');
       }
 
       const newBooking = await res.json();
@@ -130,6 +143,28 @@ function HandyNearDashboard() {
         <h1 style={{ borderBottom: '2px solid #333', paddingBottom: '10px' }}>
           HandyNear Dashboard
         </h1>
+
+        <div
+          style={{
+            background: '#f5f9ff',
+            border: '1px solid #cfe0ff',
+            borderRadius: '6px',
+            padding: '12px 16px',
+            margin: '16px 0 28px',
+          }}
+        >
+          <h3 style={{ marginTop: 0 }}>Savings goals (via MoneyMentor)</h3>
+          {goalsError && <p style={{ color: '#b00', margin: 0 }}>{goalsError}</p>}
+          {!goals && !goalsError && <p style={{ margin: 0 }}>Loading partner data...</p>}
+          {goals && goals.length === 0 && <p style={{ margin: 0 }}>No savings goals yet.</p>}
+          {goals &&
+            goals.map((g) => (
+              <p key={g.id} style={{ margin: '4px 0' }}>
+                KES {Number(g.currentAmount).toLocaleString()} of KES{' '}
+                {Number(g.goalAmount).toLocaleString()} ({g.progressPercentage}%)
+              </p>
+            ))}
+        </div>
 
         <h2>Create New Booking</h2>
         {formError && <p style={{ color: 'red' }}>{formError}</p>}

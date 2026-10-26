@@ -44,3 +44,9 @@ No changes to openapi.yaml this week. Week 6's fixes (PATCH /api/bookings/{id} i
 ### Notes
 - No breaking changes for existing consumers. The new parameter is optional, and the corrected field name matches what the API already returns.
 - `docs/index.html` was rebuilt from the updated `openapi.yaml`.
+
+## Week 10 – Contract clarifications (answering ShieldBox's review)
+
+- **`serviceCategory` filter:** free-text exact match, no enum. Unknown values return `200 []`, not `400`.
+- **`available` filter:** query parameter is `available`, response field is `isAvailable`. `true` returns only available handymen, `false` only unavailable ones, omitted returns all. Other values return `400 INVALID_QUERY_PARAM`.
+- **Booking conflicts:** not implemented. `POST /api/bookings` does not check `isAvailable` or overlapping bookings and always returns `201` with status `pending`. No `409` is defined. Known limitation; ShieldBox only reads bookings so it is not affected.

@@ -17,6 +17,9 @@ app.use('/api/handymen', handymenRoutes);
 const bookingRoutes = require('./routes/bookings');
 app.use('/api/bookings', bookingRoutes);
 
+const partnerRoutes = require('./routes/partner');
+app.use('/api/partner', partnerRoutes);
+
 // JSON error responses instead of HTML stack traces
 app.use((err, req, res, next) => {
   if (err.type === 'entity.parse.failed') {
