@@ -16,7 +16,6 @@ router.get('/savings-goals', async (req, res) => {
       return res.status(502).json({ message: 'Partner data unavailable' });
     }
     const goals = await r.json();
-    console.log('RAW PARTNER RESPONSE:', JSON.stringify(goals)); // DELETE before commit
     res.json(goals.map((g) => ({
       id: g.id,
       goalAmount: g.goal_amount,
