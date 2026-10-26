@@ -72,11 +72,11 @@ Response (`200 OK`):
 While the team is running a test, the API is also reachable at:
 
 ```
-https://miracle-encountered-prices-requiring.trycloudflare.com
+https://touring-ohio-navigate-nil.trycloudflare.com
 ```
 
 ```bash
-curl https://miracle-encountered-prices-requiring.trycloudflare.com
+curl https://touring-ohio-navigate-nil.trycloudflare.com
 ```
 
 The live URL only works while the team's server and tunnel are running.
