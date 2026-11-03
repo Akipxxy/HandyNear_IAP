@@ -25,7 +25,8 @@ function HandyNearDashboard() {
   // MoneyMentor (partner) data. Kept separate so a partner failure never breaks the dashboard.
   const [goals, setGoals] = useState(null);
   const [goalsError, setGoalsError] = useState('');
-
+  const [goalsStale, setGoalsStale] = useState(false);
+  const [goalsAsOf, setGoalsAsOf] = useState(null);
   useEffect(() => {
     Promise.all([
       fetch(`${API_URL}/api/handymen`).then((res) => {
@@ -50,10 +51,14 @@ function HandyNearDashboard() {
     // Our own backend calls MoneyMentor. The browser never sees the partner's token.
     fetch(`${API_URL}/api/partner/savings-goals`)
       .then((res) => {
-        if (!res.ok) throw new Error('Partner data is unavailable right now');
+               if (!res.ok) throw new Error('Partner data is unavailable right now. Try again in a minute.');
         return res.json();
       })
-      .then(setGoals)
+      .then(({ data, stale, asOf }) => {
+        setGoals(data);
+        setGoalsStale(stale);
+        setGoalsAsOf(asOf);
+      })
       .catch((err) => setGoalsError(err.message));
   }, []);
 
@@ -153,7 +158,20 @@ function HandyNearDashboard() {
             margin: '16px 0 28px',
           }}
         >
-          <h3 style={{ marginTop: 0 }}>Savings goals (via MoneyMentor)</h3>
+        <h3 style={{ marginTop: 0 }}>Savings goals (via MoneyMentor)</h3>
+          {goalsStale && goalsAsOf && (
+            <p
+              style={{
+                background: '#fff3cd',
+                border: '1px solid #ffe69c',
+                padding: '6px 10px',
+                borderRadius: '4px',
+                margin: '0 0 8px',
+              }}
+            >
+              Showing saved data from {new Date(goalsAsOf).toLocaleTimeString()}. The partner is not responding.
+            </p>
+          )}
           {goalsError && <p style={{ color: '#b00', margin: 0 }}>{goalsError}</p>}
           {!goals && !goalsError && <p style={{ margin: 0 }}>Loading partner data...</p>}
           {goals && goals.length === 0 && <p style={{ margin: 0 }}>No savings goals yet.</p>}

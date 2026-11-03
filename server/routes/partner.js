@@ -1,5 +1,8 @@
 const express = require('express');
 const router = express.Router();
+const { fetchWithRetry } = require('../resilientFetch');
+
+let lastGood = null; // { data, asOf }, kept in memory (lost on restart, which is fine here)
 
 router.get('/savings-goals', async (req, res) => {
   const base = process.env.PARTNER_URL;
@@ -10,21 +13,31 @@ router.get('/savings-goals', async (req, res) => {
   if (token) headers.Authorization = `Bearer ${token}`;
 
   try {
-    const r = await fetch(`${base}/api/handymen/${handymanId}/savings-goals`, { headers });
-    if (!r.ok) {
-      console.error('partner returned', r.status); // status only, never the token
-      return res.status(502).json({ message: 'Partner data unavailable' });
-    }
+    const r = await fetchWithRetry(
+      `${base}/api/handymen/${handymanId}/savings-goals`,
+      { headers },
+      { timeoutMs: 1500, retries: 2, delayMs: 200 }
+    );
+    if (!r.ok) throw new Error(`partner returned ${r.status}`);
+
     const goals = await r.json();
-    res.json(goals.map((g) => ({
+    const data = goals.map((g) => ({
       id: g.id,
       goalAmount: g.goal_amount,
       currentAmount: g.current_amount,
       progressPercentage: g.progress_percentage,
-    })));
+    }));
+    lastGood = { data, asOf: new Date().toISOString() };
+    return res.json({ data, stale: false, asOf: lastGood.asOf });
   } catch (err) {
-    console.error('partner call failed:', err.cause?.code || err.message);
-    res.status(502).json({ message: 'Partner data unavailable' });
+    const reason = err.name === 'TimeoutError'
+      ? 'timeout'
+      : (err.cause?.code || err.message);
+    console.error('partner call failed:', reason); // never log the token
+    if (lastGood) {
+      return res.json({ data: lastGood.data, stale: true, asOf: lastGood.asOf });
+    }
+    return res.status(502).json({ message: 'Partner data unavailable' });
   }
 });
 
