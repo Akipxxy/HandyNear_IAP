@@ -1,10 +1,18 @@
 const RETRY_STATUSES = new Set([429, 500, 502, 503, 504]);
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// A request is safe to retry if it is a GET, or a POST that carries an
+// Idempotency-Key (the partner replays the original result for the same key).
+function isRetryable(options) {
+  const method = (options.method || 'GET').toUpperCase();
+  if (method === 'GET') return true;
+  const headers = options.headers || {};
+  return method === 'POST' && Boolean(headers['Idempotency-Key']);
+}
+
 async function fetchWithRetry(url, options = {}, config = {}) {
   const { timeoutMs = 1500, retries = 2, delayMs = 200 } = config;
-  const method = (options.method || 'GET').toUpperCase();
-  const maxRetries = method === 'GET' ? retries : 0; // never retry writes
+  const maxRetries = isRetryable(options) ? retries : 0; // never retry unsafe writes
 
   for (let attempt = 0; ; attempt++) {
     let wait = delayMs * 2 ** attempt; // 200 ms, then 400 ms
