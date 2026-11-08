@@ -1,14 +1,42 @@
 openapi: 3.0.0
 info:
   title: HandyNear API (Team 7)
-  version: 1.0.0
-  description: Handyman service discovery and booking management API for HandyNear.
+  version: 1.1.0
+  description: |
+    Handyman service discovery and booking management API for HandyNear, plus a simulated customer wallet.
+
+    **What changed in 1.1.0.** Customers can top up a simulated wallet. When a handyman finishes a job and the
+    booking is marked `completed`, the server automatically pays the handyman from the customer's wallet.
+    Bookings gained three optional response fields (`customerId`, `priceCents`, `paymentStatus`). Nothing was
+    removed or renamed, so existing consumers (for example ShieldBox) keep working.
+
+    **Money rules.**
+    - All amounts are **integer cents** (100 cents = KES 1). Display KES = cents / 100.
+    - All money is **simulated**. No real payment is ever made. Wallet responses carry `"simulated": true`.
+    - Wallets are held by our upstream partner, MoneyMentor Kenya (Team 6). HandyNear stores only customers, a
+      booking price and a payment status. Only our server talks to MoneyMentor, never the browser.
+    - Customer "login" is simulated: a client simply picks a customer ID.
+
+    **Errors.** Errors are JSON `{"code": "...", "message": "..."}` (see `ErrorResponse` for every code).
+    A few legacy `500` responses on handymen and bookings use `{"error": "..."}` instead.
 servers:
-  - url: http://localhost:5000
-    description: Local development server
+  - url: http://127.0.0.1:5000
+    description: Local development server (use 127.0.0.1; on Windows `localhost` can be slow)
+security: []
+tags:
+  - name: Handymen
+    description: Browse handymen. Read-only; used by the downstream partner ShieldBox.
+  - name: Bookings
+    description: Create bookings and update their status. Completing a booking that has a customer pays the handyman from the customer's wallet.
+  - name: Customers
+    description: Create and look up customers. This is HandyNear's own feature, not a ShieldBox need.
+  - name: Wallet
+    description: Simulated customer wallet, held by MoneyMentor Kenya (Team 6). All amounts are integer cents and all money is simulated.
 paths:
   /api/handymen:
     get:
+      tags: [Handymen]
+      operationId: listHandymen
       summary: List all available handymen
       parameters:
         - name: serviceCategory
@@ -43,6 +71,8 @@ paths:
 
   /api/handymen/{id}:
     get:
+      tags: [Handymen]
+      operationId: getHandyman
       summary: Get details for a specific handyman
       parameters:
         - name: id
@@ -68,7 +98,14 @@ paths:
 
   /api/bookings:
     get:
+      tags: [Bookings]
+      operationId: listBookings
       summary: Retrieve all bookings
+      description: |
+        Returns every booking, optionally filtered. Each booking now also carries `customerId`, `priceCents`
+        and `paymentStatus` (optional for consumers: they can be ignored).
+
+        ShieldBox example: `GET /api/bookings?handymanId=1&status=completed`.
       parameters:
         - name: status
           in: query
@@ -94,30 +131,107 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Booking'
+        '400':
+          description: A query parameter is invalid (`status` not one of the allowed values, or `handymanId` not a positive integer).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: INVALID_QUERY_PARAM
+                message: "status must be one of: pending, confirmed, completed, cancelled"
     post:
+      tags: [Bookings]
+      operationId: createBooking
       summary: Create a new service booking
+      description: |
+        Creates a booking with status `pending`.
+
+        **Without `customerId`** the endpoint behaves exactly as before: no price is stored and the booking
+        never triggers a payment.
+
+        **With `customerId`** the server looks up the handyman and the customer, then stores
+        `priceCents = round(hourlyRate * 100 * durationHours)` (`durationHours` defaults to 1).
+        Example: hourly rate 1500 KES, `durationHours` 2 gives `priceCents` 300000.
+
+        If the server is configured with `PARTNER_REGISTER_BOOKINGS=true`, it also registers the booking with
+        MoneyMentor so it can be paid later. A failure of that registration is only logged and does not fail
+        this request.
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/CreateBookingRequest'
+            examples:
+              withoutCustomer:
+                summary: Old-style booking (no wallet, no price)
+                value:
+                  handymanId: 1
+                  customerName: "Test User"
+                  customerPhone: "+254700000000"
+                  serviceDescription: "Fix leaking tap"
+                  scheduledTime: "2026-10-25T10:00:00Z"
+              withCustomer:
+                summary: Booking for a customer, 2 hours (priced from the handyman's hourly rate)
+                value:
+                  handymanId: 1
+                  customerId: 1
+                  customerName: "Sarah Mwangi"
+                  customerPhone: "+254798765432"
+                  serviceDescription: "Leaking kitchen sink faucet repair"
+                  scheduledTime: "2026-11-20T14:30:00Z"
+                  durationHours: 2
       responses:
         '201':
-          description: Booking successfully created.
+          description: Booking successfully created. With `customerId`, `priceCents` is set and `paymentStatus` is `unpaid`.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Booking'
+              example:
+                id: 4
+                handymanId: 1
+                customerName: "Sarah Mwangi"
+                customerPhone: "+254798765432"
+                customerEmail: null
+                serviceDescription: "Leaking kitchen sink faucet repair"
+                scheduledTime: "2026-11-20T14:30:00.000Z"
+                status: pending
+                notes: null
+                createdAt: "2026-11-08T09:00:00.000Z"
+                customerId: 1
+                priceCents: 300000
+                paymentStatus: unpaid
         '400':
-          description: Validation error or malformed request payload.
+          description: Validation error or malformed request payload (missing required field, `handymanId` not a number, bad `customerId` or `durationHours`).
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: VALIDATION_ERROR
+                message: "durationHours must be a number above 0 and at most 24"
+        '404':
+          description: '`customerId` was sent but the handyman or the customer does not exist.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                unknownCustomer:
+                  value:
+                    code: RESOURCE_NOT_FOUND
+                    message: "Customer not found"
+                unknownHandyman:
+                  value:
+                    code: RESOURCE_NOT_FOUND
+                    message: "Handyman not found"
 
   /api/bookings/{id}:
     get:
+      tags: [Bookings]
+      operationId: getBooking
       summary: Retrieve a single booking by ID
       parameters:
         - name: id
@@ -141,7 +255,23 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
     patch:
-      summary: Update booking status or notes
+      tags: [Bookings]
+      operationId: updateBooking
+      summary: Update booking status or notes (completing a booking pays the handyman)
+      description: |
+        Updates a booking's `status` and/or `notes`. Send at least one.
+
+        **Pay-on-complete.** When `status` changes **to `completed`** on a booking that has a `customerId` and
+        is not yet paid, the server **pays first**: it asks MoneyMentor to move the booking price from the
+        customer's wallet to the handyman (idempotency key `booking-{id}`).
+        - On success the booking becomes `completed` with `paymentStatus` `paid`.
+        - On failure the booking is **left unchanged** and one of the errors below is returned
+          (`409 PAYMENT_FAILED`, `409 PAYMENT_NOT_READY`, `502 PARTNER_UNAVAILABLE`).
+        - Sending `completed` again for an already completed or already paid booking never charges twice.
+        - Bookings **without** a `customerId` complete with no payment (the old behaviour).
+        - Other status changes (for example `confirmed`) never trigger a payment.
+
+        All money is simulated and amounts are integer cents.
       parameters:
         - name: id
           in: path
@@ -166,19 +296,396 @@ paths:
                   example: "Work completed ahead of schedule."
       responses:
         '200':
-          description: Booking successfully updated.
+          description: Booking successfully updated. If the booking was completed with a customer, `paymentStatus` is now `paid`.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Booking'
+              example:
+                id: 1
+                handymanId: 1
+                customerName: "Sarah Mwangi"
+                customerPhone: "+254798765432"
+                customerEmail: "sarah@example.com"
+                serviceDescription: "Leaking kitchen sink faucet repair"
+                scheduledTime: "2026-10-20T14:30:00.000Z"
+                status: completed
+                notes: null
+                createdAt: "2026-10-14T06:34:07.000Z"
+                customerId: 1
+                priceCents: 50000
+                paymentStatus: paid
+        '400':
+          description: Validation error (neither `status` nor `notes` sent, or `status` not an allowed value).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: VALIDATION_ERROR
+                message: "at least one of status or notes must be provided"
         '404':
           description: Booking record not found.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: RESOURCE_NOT_FOUND
+                message: "Booking not found"
+        '409':
+          description: The payment was refused, so the booking was **not** changed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                paymentFailed:
+                  summary: Payment refused by MoneyMentor (for example insufficient funds)
+                  value:
+                    code: PAYMENT_FAILED
+                    message: "Insufficient wallet balance."
+                paymentNotReady:
+                  summary: Booking is not registered with MoneyMentor yet
+                  value:
+                    code: PAYMENT_NOT_READY
+                    message: "This booking is not registered with MoneyMentor yet, so it cannot be paid."
+        '502':
+          $ref: '#/components/responses/PartnerUnavailable'
+
+  /api/customers:
+    post:
+      tags: [Customers]
+      operationId: createCustomer
+      summary: Create a customer
+      description: |
+        Creates a customer record. A new customer has **no wallet** at MoneyMentor until Team 6 provisions one,
+        so wallet calls for a brand-new customer return `404` or `502`. Only seeded customers 1 and 2 are
+        provisioned.
+      security:
+        - walletApiKey: []
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCustomerRequest'
+            example:
+              name: "Sarah Mwangi"
+              phone: "+254798765432"
+              email: "sarah@example.com"
+      responses:
+        '201':
+          description: Customer created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+              example:
+                id: 3
+                name: "Sarah Mwangi"
+                phone: "+254798765432"
+                email: "sarah@example.com"
+                createdAt: "2026-11-08T09:00:00.000Z"
+        '400':
+          description: Validation error (`name` and `phone` are required, with maximum lengths 100 and 20; `email` maximum 100).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: VALIDATION_ERROR
+                message: "name (max 100) and phone (max 20) are required"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/customers/{id}:
+    get:
+      tags: [Customers]
+      operationId: getCustomer
+      summary: Get one customer
+      description: There is no "list customers" endpoint.
+      security:
+        - walletApiKey: []
+        - {}
+      parameters:
+        - $ref: '#/components/parameters/CustomerId'
+      responses:
+        '200':
+          description: The customer.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+        '400':
+          description: '`id` is not a positive integer.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: INVALID_ID
+                message: "Customer ID must be a positive integer"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Customer not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: RESOURCE_NOT_FOUND
+                message: "Customer not found"
+
+  /api/customers/{id}/wallet:
+    get:
+      tags: [Wallet]
+      operationId: getWallet
+      summary: Get a customer's wallet balance
+      description: |
+        Returns the current balance in **integer cents** (simulated money). The balance is held by MoneyMentor and
+        read live on every call; the response is sent with `Cache-Control: no-store` and we never show a cached
+        balance. Reads time out after 1.5 s, with two retries.
+      security:
+        - walletApiKey: []
+        - {}
+      parameters:
+        - $ref: '#/components/parameters/CustomerId'
+      responses:
+        '200':
+          description: The wallet.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Wallet'
+              example:
+                customerId: 1
+                balanceCents: 100000
+                currency: KES
+                simulated: true
+        '400':
+          description: '`id` is not a positive integer.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: INVALID_ID
+                message: "Customer ID must be a positive integer"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/WalletNotFound'
+        '502':
+          $ref: '#/components/responses/PartnerUnavailable'
+
+  /api/customers/{id}/wallet/transactions:
+    get:
+      tags: [Wallet]
+      operationId: listWalletTransactions
+      summary: List a customer's wallet transactions
+      description: Returns the ledger, **newest first**. Amounts are integer cents (simulated money).
+      security:
+        - walletApiKey: []
+        - {}
+      parameters:
+        - $ref: '#/components/parameters/CustomerId'
+      responses:
+        '200':
+          description: The transactions, newest first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WalletTransaction'
+              example:
+                - id: 2
+                  customerId: 1
+                  type: payment
+                  amountCents: 50000
+                  balanceAfterCents: 50000
+                  bookingId: 1
+                  currency: KES
+                  simulated: true
+                  createdAt: "2026-11-08T09:30:00.000Z"
+                - id: 1
+                  customerId: 1
+                  type: topup
+                  amountCents: 100000
+                  balanceAfterCents: 100000
+                  bookingId: null
+                  currency: KES
+                  simulated: true
+                  createdAt: "2026-11-08T09:00:00.000Z"
+        '400':
+          description: '`id` is not a positive integer.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: INVALID_ID
+                message: "Customer ID must be a positive integer"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/WalletNotFound'
+        '502':
+          $ref: '#/components/responses/PartnerUnavailable'
+
+  /api/customers/{id}/wallet/topups:
+    post:
+      tags: [Wallet]
+      operationId: topUpWallet
+      summary: Top up a customer's wallet (simulated credit)
+      description: |
+        Adds simulated credit to the wallet. The **`Idempotency-Key` header is required**: generate a fresh key
+        for every click (for example `crypto.randomUUID()`).
+
+        - Same key and same body again: `201` with the **original** result. No second credit is added.
+        - Same key for a different request: `409 CONFLICT`.
+        - The body must be exactly `{"amountCents": <integer 1..1000000000>}` and nothing else.
+        - A wallet balance may not exceed KES 10,000,000 (1,000,000,000 cents); going over returns `409 CONFLICT`.
+
+        Writes time out after 5 s and are retried twice. This is safe only because the request carries an
+        idempotency key (the same key always returns the original result).
+      security:
+        - walletApiKey: []
+        - {}
+      parameters:
+        - $ref: '#/components/parameters/CustomerId'
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: A fresh unique key per top-up attempt. 1 to 100 characters, only letters, digits, `-` and `_`.
+          schema:
+            type: string
+            pattern: '^[A-Za-z0-9_-]{1,100}$'
+            example: "topup-2026-11-08-0001"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TopupRequest'
+            example:
+              amountCents: 100000
+      responses:
+        '201':
+          description: Top-up recorded. The body is the new `topup` transaction (or the original one when the same key is repeated).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletTransaction'
+              example:
+                id: 1
+                customerId: 1
+                type: topup
+                amountCents: 100000
+                balanceAfterCents: 100000
+                bookingId: null
+                currency: KES
+                simulated: true
+                createdAt: "2026-11-08T09:00:00.000Z"
+        '400':
+          description: Missing or malformed `Idempotency-Key`, `id` not a positive integer, or a bad body (amount missing, not an integer, outside 1..1000000000, or extra fields).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missingKey:
+                  value:
+                    code: VALIDATION_ERROR
+                    message: "Idempotency-Key header is required (1-100 letters, digits, - or _)"
+                badBody:
+                  value:
+                    code: VALIDATION_ERROR
+                    message: "Send only amountCents, an integer from 1 to 1000000000"
+                invalidId:
+                  value:
+                    code: INVALID_ID
+                    message: "Customer ID must be a positive integer"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/WalletNotFound'
+        '409':
+          description: The key was already used for a different request, or the balance limit (KES 10,000,000) would be exceeded. The message text comes from MoneyMentor and may differ.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: CONFLICT
+                message: "Idempotency key was already used for a different request."
+        '502':
+          $ref: '#/components/responses/PartnerUnavailable'
 
 components:
+  securitySchemes:
+    walletApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: |
+        Optional. Enforced **only when `WALLET_API_KEY` is configured on the server**; it is off in local
+        development, so the browser sends no key. When it is on, `/api/customers/*` requires this header with
+        that value and returns `401 UNAUTHORIZED` otherwise. Never put a real key in client code or in this repo.
+
+  parameters:
+    CustomerId:
+      name: id
+      in: path
+      required: true
+      description: Customer ID (a positive integer).
+      schema:
+        type: integer
+        minimum: 1
+        example: 1
+
+  responses:
+    Unauthorized:
+      description: The server requires an API key (`WALLET_API_KEY` is set) and the `X-API-Key` header is missing or wrong.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: UNAUTHORIZED
+            message: "Missing or invalid API key"
+    WalletNotFound:
+      description: |
+        The customer does not exist in HandyNear (`RESOURCE_NOT_FOUND`), or the customer exists but MoneyMentor has
+        no wallet for them (`NOT_FOUND`). A brand-new customer has no wallet until Team 6 provisions one.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            unknownCustomer:
+              summary: No such customer in HandyNear
+              value:
+                code: RESOURCE_NOT_FOUND
+                message: "Customer not found"
+            noWallet:
+              summary: Customer exists but has no wallet at MoneyMentor (message text comes from MoneyMentor)
+              value:
+                code: NOT_FOUND
+                message: "Request rejected by MoneyMentor."
+    PartnerUnavailable:
+      description: MoneyMentor did not respond in time, was unreachable, or failed. Nothing was changed. Try again in a minute.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: PARTNER_UNAVAILABLE
+            message: "MoneyMentor is not responding. Try again in a minute."
+
   schemas:
     Handyman:
       type: object
@@ -243,6 +750,10 @@ components:
         customerPhone:
           type: string
           example: "+254798765432"
+        customerEmail:
+          type: string
+          format: email
+          example: "sarah@example.com"
         serviceDescription:
           type: string
           example: "Leaking kitchen sink faucet repair"
@@ -250,6 +761,19 @@ components:
           type: string
           format: date-time
           example: "2026-09-12T14:30:00Z"
+        customerId:
+          type: integer
+          minimum: 1
+          example: 1
+          description: Optional. Links the booking to a customer so it can be priced and paid from the customer's wallet. An unknown customer gives 404.
+        durationHours:
+          type: number
+          minimum: 0
+          exclusiveMinimum: true
+          maximum: 24
+          default: 1
+          example: 2
+          description: Optional, used only with `customerId`. Greater than 0 and at most 24 (default 1). Price in cents = round(handyman hourlyRate x 100 x durationHours).
 
     Booking:
       type: object
@@ -278,6 +802,7 @@ components:
         customerEmail:
           type: string
           format : email
+          nullable: true
           example: sarah@example.com
         serviceDescription:
           type: string
@@ -292,17 +817,164 @@ components:
           example: "confirmed"
         notes:
           type: string
+          nullable: true
           example: "Customer requested arrival after 2:30 PM."
         createdAt:
           type: string
           format: date-time
           example: "2026-09-09T09:15:00Z"
+        customerId:
+          type: integer
+          nullable: true
+          example: 1
+          description: Customer who booked, or null for old-style bookings made without a customer. Optional for consumers; can be ignored.
+        priceCents:
+          type: integer
+          nullable: true
+          example: 150000
+          description: Booking price in integer cents (100 cents = KES 1), or null when the booking has no customer. Simulated money.
+        paymentStatus:
+          type: string
+          enum: [unpaid, paid]
+          example: "unpaid"
+          description: '`paid` once the handyman has been paid from the customer''s wallet on completion; otherwise `unpaid`.'
+
+    Customer:
+      type: object
+      required: [id, name, phone, createdAt]
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          maxLength: 100
+          example: "Sarah Mwangi"
+        phone:
+          type: string
+          maxLength: 20
+          example: "+254798765432"
+        email:
+          type: string
+          nullable: true
+          maxLength: 100
+          example: "sarah@example.com"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-11-08T09:00:00.000Z"
+
+    CreateCustomerRequest:
+      type: object
+      required: [name, phone]
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          example: "Sarah Mwangi"
+        phone:
+          type: string
+          maxLength: 20
+          example: "+254798765432"
+        email:
+          type: string
+          maxLength: 100
+          example: "sarah@example.com"
+
+    Wallet:
+      type: object
+      required: [customerId, balanceCents, currency, simulated]
+      properties:
+        customerId:
+          type: integer
+          example: 1
+        balanceCents:
+          type: integer
+          example: 100000
+          description: Current balance in integer cents (100 cents = KES 1). Display KES = balanceCents / 100.
+        currency:
+          type: string
+          enum: [KES]
+          example: "KES"
+        simulated:
+          type: boolean
+          example: true
+          description: Always true. No real money is involved.
+
+    WalletTransaction:
+      type: object
+      required: [id, customerId, type, amountCents, balanceAfterCents, bookingId, currency, simulated, createdAt]
+      properties:
+        id:
+          type: integer
+          example: 1
+        customerId:
+          type: integer
+          example: 1
+        type:
+          type: string
+          enum: [topup, payment]
+          example: "topup"
+        amountCents:
+          type: integer
+          example: 100000
+          description: Amount in integer cents.
+        balanceAfterCents:
+          type: integer
+          example: 100000
+          description: Wallet balance right after this transaction, in cents. For a repeated idempotent top-up this is the balance at the time of the original transaction, so use `GET /wallet` for the current balance.
+        bookingId:
+          type: integer
+          nullable: true
+          example: null
+          description: The booking that was paid, for `payment` transactions; null for top-ups.
+        currency:
+          type: string
+          enum: [KES]
+          example: "KES"
+        simulated:
+          type: boolean
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-11-08T09:00:00.000Z"
+
+    TopupRequest:
+      type: object
+      additionalProperties: false
+      required: [amountCents]
+      properties:
+        amountCents:
+          type: integer
+          minimum: 1
+          maximum: 1000000000
+          example: 100000
+          description: Amount to add, in integer cents (100000 = KES 1,000). No other fields are accepted.
 
     ErrorResponse:
       type: object
       required:
         - code
         - message
+      description: |
+        Every error from the customer, wallet, and (nearly all) handymen and booking routes. A few legacy `500`
+        responses on handymen and bookings use `{"error": "..."}` instead.
+
+        | code | Meaning |
+        |---|---|
+        | `VALIDATION_ERROR` | The body or a header is invalid (HTTP 400). |
+        | `INVALID_ID` | A path ID is not a positive integer (400). |
+        | `INVALID_QUERY_PARAM` | A query parameter has an invalid value (400). |
+        | `INVALID_JSON` | The request body is not valid JSON (400). |
+        | `UNAUTHORIZED` | `X-API-Key` missing or wrong while `WALLET_API_KEY` is set (401). |
+        | `RESOURCE_NOT_FOUND` | The customer, handyman or booking does not exist (404). |
+        | `NOT_FOUND` | MoneyMentor has no wallet for this customer (404, wallet routes only). |
+        | `CONFLICT` | Idempotency key reused for a different request, or balance limit exceeded (409). |
+        | `PAYMENT_FAILED` | Pay-on-complete refused, for example insufficient funds; booking unchanged (409). |
+        | `PAYMENT_NOT_READY` | Booking is not registered with MoneyMentor yet, so it cannot be paid; booking unchanged (409). |
+        | `PARTNER_UNAVAILABLE` | MoneyMentor is down, slow or failing; nothing was changed (502). |
+        | `INTERNAL_ERROR` | Unexpected server error (500). |
       properties:
         code:
           type: string

@@ -1,5 +1,7 @@
 # RESILIENCE_NOTES.md — HandyNear (Team 7)
 
+> **Superseded in November 2026:** the feature measured in sections 1 to 5 below, the "Savings goals (via MoneyMentor)" box, was replaced by the customer wallet (our lecturer rejected savings goals; MoneyMentor's savings-goals routes now return 404). The measurements below are real, dated evidence and are kept unchanged. The retry rule in section 2 ("we never retry POST...") has also changed for the wallet: see **6. Wallet payments** at the end.
+
 **Feature:** the "Savings goals (via MoneyMentor)" box on the HandyNear dashboard.
 The browser calls our own route `GET /api/partner/savings-goals` (`server/routes/partner.js`),
 which calls MoneyMentor's `GET /api/handymen/{id}/savings-goals` with a bearer token.
@@ -86,3 +88,14 @@ tests it only occasionally. Ours still tries every request three times, so when 
 down every page load waits up to about 5 seconds before showing saved data or the message. With
 a circuit breaker we would skip the partner straight away after a few failures and serve the saved
 data at once, which would remove that wait and give the partner room to recover.
+
+## 6. Wallet payments (November 2026)
+The wallet (`server/moneymentor.js`, with retries in `server/resilientFetch.js`) calls MoneyMentor from our server only. Reads (balance, transactions) time out at **1.5 s**, writes (top-up, payment) at **5 s**, with **2 retries** after **200 ms, then 400 ms**.
+
+- **Why POST retries need an idempotency key:** retrying a write could do it twice (two top-ups, or paying a booking twice). Our server retries a MoneyMentor POST **only when it carries an `Idempotency-Key`**, because MoneyMentor replays the original result for the same key. A payment uses the key `booking-{id}`, so paying the same booking again returns the same transaction and never charges twice. A write without a key is never retried. (This replaces the old "never retry POST" rule above, which was written for GET-only calls.)
+- **Why money is never served stale:** unlike the old savings box, we do **not** show a saved copy when MoneyMentor is down. A wrong balance is worse than no balance, so wallet reads are sent with `Cache-Control: no-store` and we never show a cached balance. If MoneyMentor does not answer, the customer gets an error and can try again.
+- **What happens on 409:** MoneyMentor refused the payment (for example insufficient balance). Our server returns `409 PAYMENT_FAILED` (or `409 PAYMENT_NOT_READY` if the booking is not registered with MoneyMentor) and leaves the booking **unchanged**. For a top-up, `409 CONFLICT` means the key was reused for a different request or the balance limit would be exceeded. Retrying does not help, so it is not retried.
+- **What happens on 502:** MoneyMentor did not answer in time, was unreachable, or returned an error we do not pass through (401, 429, 5xx). Our server returns `502 PARTNER_UNAVAILABLE`. For a completion, the booking is left **unchanged**, because we pay first and only then update the booking. The customer can press complete again later; the same idempotency key means it cannot charge twice.
+- **Tested locally against the stand-in (`server/flaky-partner.js`), not against the real MoneyMentor:** flaky mode was retried and succeeded; error mode returned 502; paying the same booking twice returned the same transaction; insufficient funds returned 409.
+- **Measured timings:** `TO FILL` (we have no measured wallet timings to report yet; run the stand-in in `slow` mode and record the time of a wallet call before filling this in).
+- **Not demonstrated:** the "partner came back" step against the real MoneyMentor. We do not claim it.
