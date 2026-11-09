@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const mm = require('../moneymentor');
+const { requireRole } = require('../auth');
 
 const ALLOWED_STATUSES = ['pending', 'confirmed', 'completed', 'cancelled'];
 
@@ -24,8 +25,9 @@ function toBookingResponse(row) {
   };
 }
 
-// Create a booking — field names match the contract's CreateBookingRequest (camelCase)
-router.post('/', async (req, res) => {
+// Create a booking. Customers must be logged in and can only book for themselves;
+// the admin may book for any customerId. Field names match CreateBookingRequest (camelCase).
+router.post('/', requireRole('customer', 'admin'), async (req, res) => {
   const {
     handymanId,
     customerName,
@@ -33,9 +35,11 @@ router.post('/', async (req, res) => {
     customerEmail,
     serviceDescription,
     scheduledTime,
-    customerId,
+    customerId: bodyCustomerId,
     durationHours
   } = req.body;
+  // A logged-in customer can never book (or pay) on behalf of someone else
+  const customerId = req.auth.role === 'customer' ? req.auth.id : bodyCustomerId;
 
   // Validation-first: required fields per the contract, checked before anything is written
   if (!handymanId || !customerName || !customerPhone || !serviceDescription || !scheduledTime) {
@@ -141,6 +145,17 @@ router.get('/', async (req, res) => {
   }
 });
 
+// The logged-in customer's own bookings (must be declared before '/:id')
+router.get('/mine', requireRole('customer'), async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT * FROM bookings WHERE customer_id = ? ORDER BY id DESC', [req.auth.id]);
+    res.status(200).json(rows.map(toBookingResponse));
+  } catch (err) {
+    console.error('Database error:', err.sqlMessage || err.message);
+    res.status(500).json({ error: 'Failed to fetch bookings' });
+  }
+});
+
 // Get a single booking by ID
 router.get('/:id', async (req, res) => {
   const { id } = req.params;
@@ -159,8 +174,8 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Update a booking's status or notes
-router.patch('/:id', async (req, res) => {
+// Update a booking's status or notes (admin only; completing a booking pays the handyman)
+router.patch('/:id', requireRole('admin'), async (req, res) => {
   const { id } = req.params;
   const { status, notes } = req.body;
 

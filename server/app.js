@@ -3,6 +3,7 @@ const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
+app.disable('x-powered-by');
 
 app.use(cors());
 app.use(express.json());
@@ -18,8 +19,10 @@ const bookingRoutes = require('./routes/bookings');
 app.use('/api/bookings', bookingRoutes);
 
 const customerRoutes = require('./routes/customers');
-const requireWalletKey = require('./requireWalletKey');
-app.use('/api/customers', requireWalletKey, customerRoutes);
+app.use('/api/customers', customerRoutes);
+
+const authRoutes = require('./routes/auth');
+app.use('/api/auth', authRoutes);
 
 // JSON error responses instead of HTML stack traces
 app.use((err, req, res, next) => {

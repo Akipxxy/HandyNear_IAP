@@ -2,14 +2,15 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const mm = require('../moneymentor');
+const { requireRole, requireSelfOrAdmin } = require('../auth');
 
 const MAX_CENTS = 1000000000;
 const toCustomer = (row) => ({
   id: row.id, name: row.name, phone: row.phone, email: row.email, createdAt: row.created_at,
 });
 
-// Create a customer
-router.post('/', async (req, res) => {
+// Create a customer (admin only; customers sign up themselves through /api/auth/register)
+router.post('/', requireRole('admin'), async (req, res) => {
   const { name, phone, email } = req.body || {};
   if (typeof name !== 'string' || !name.trim() || name.length > 100 ||
       typeof phone !== 'string' || !phone.trim() || phone.length > 20) {
@@ -49,22 +50,22 @@ async function loadCustomer(req, res, next) {
   }
 }
 
-router.get('/:id', loadCustomer, (req, res) => res.json(toCustomer(req.customer)));
+router.get('/:id', requireSelfOrAdmin, loadCustomer, (req, res) => res.json(toCustomer(req.customer)));
 
 // Wallet: the money lives at MoneyMentor. We only pass requests through.
-router.get('/:id/wallet', loadCustomer, async (req, res) => {
+router.get('/:id/wallet', requireSelfOrAdmin, loadCustomer, async (req, res) => {
   try {
     res.set('Cache-Control', 'no-store').json(await mm.getWallet(req.customer.id));
   } catch (err) { mm.sendPartnerError(res, err); }
 });
 
-router.get('/:id/wallet/transactions', loadCustomer, async (req, res) => {
+router.get('/:id/wallet/transactions', requireSelfOrAdmin, loadCustomer, async (req, res) => {
   try {
     res.set('Cache-Control', 'no-store').json(await mm.getTransactions(req.customer.id));
   } catch (err) { mm.sendPartnerError(res, err); }
 });
 
-router.post('/:id/wallet/topups', loadCustomer, async (req, res) => {
+router.post('/:id/wallet/topups', requireSelfOrAdmin, loadCustomer, async (req, res) => {
   const key = req.get('Idempotency-Key');
   if (!key || !/^[A-Za-z0-9_-]{1,100}$/.test(key)) {
     return res.status(400).json({ code: 'VALIDATION_ERROR', message: 'Idempotency-Key header is required (1-100 letters, digits, - or _)' });

@@ -1,5 +1,6 @@
 jest.mock('../db', () => ({ query: jest.fn() }));
 const db = require('../db');
+const ADMIN = require('../test-helpers').admin();
 const request = require('supertest');
 const app = require('../app');
 
@@ -36,7 +37,7 @@ describe('POST /api/bookings', () => {
       .mockResolvedValueOnce([{ insertId: 101 }])   // INSERT
       .mockResolvedValueOnce([[dbRow()]]);          // SELECT the created row back
 
-    const res = await request(app).post('/api/bookings').send(validPayload);
+    const res = await request(app).post('/api/bookings').set('Authorization', ADMIN).send(validPayload);
 
     expect(res.status).toBe(201);
     expect(res.body).toHaveProperty('id', 101);
@@ -46,7 +47,7 @@ describe('POST /api/bookings', () => {
   });
 
   it('rejects a request missing required fields with 400 (validation)', async () => {
-    const res = await request(app).post('/api/bookings').send({ handymanId: 12 });
+    const res = await request(app).post('/api/bookings').set('Authorization', ADMIN).send({ handymanId: 12 });
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty('code', 'VALIDATION_ERROR');
     expect(db.query).not.toHaveBeenCalled(); // nothing written on invalid input
@@ -55,6 +56,7 @@ describe('POST /api/bookings', () => {
   it('rejects a non-numeric handymanId with 400 (wrong type)', async () => {
     const res = await request(app)
       .post('/api/bookings')
+      .set('Authorization', ADMIN)
       .send({ ...validPayload, handymanId: 'twelve' });
     expect(res.status).toBe(400);
     expect(db.query).not.toHaveBeenCalled();
@@ -108,7 +110,7 @@ describe('PATCH /api/bookings/:id', () => {
       .mockResolvedValueOnce([{ affectedRows: 1 }])                // UPDATE
       .mockResolvedValueOnce([[dbRow({ status: 'confirmed' })]]);  // re-fetch
 
-    const res = await request(app).patch('/api/bookings/101').send({ status: 'confirmed' });
+    const res = await request(app).patch('/api/bookings/101').set('Authorization', ADMIN).send({ status: 'confirmed' });
 
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('confirmed');
@@ -116,19 +118,19 @@ describe('PATCH /api/bookings/:id', () => {
 
   it('returns 404 on a nonexistent booking rather than creating one', async () => {
     db.query.mockResolvedValueOnce([[]]); // existence check finds nothing
-    const res = await request(app).patch('/api/bookings/9999').send({ status: 'confirmed' });
+    const res = await request(app).patch('/api/bookings/9999').set('Authorization', ADMIN).send({ status: 'confirmed' });
     expect(res.status).toBe(404);
     expect(db.query).toHaveBeenCalledTimes(1); // never reached the UPDATE
   });
 
   it('rejects an invalid status value with 400', async () => {
-    const res = await request(app).patch('/api/bookings/101').send({ status: 'in-orbit' });
+    const res = await request(app).patch('/api/bookings/101').set('Authorization', ADMIN).send({ status: 'in-orbit' });
     expect(res.status).toBe(400);
     expect(db.query).not.toHaveBeenCalled();
   });
 
   it('rejects an empty body with 400 (nothing to update)', async () => {
-    const res = await request(app).patch('/api/bookings/101').send({});
+    const res = await request(app).patch('/api/bookings/101').set('Authorization', ADMIN).send({});
     expect(res.status).toBe(400);
   });
 
@@ -137,13 +139,13 @@ describe('PATCH /api/bookings/:id', () => {
       .mockResolvedValueOnce([[dbRow()]])
       .mockResolvedValueOnce([{ affectedRows: 1 }])
       .mockResolvedValueOnce([[dbRow({ status: 'confirmed' })]]);
-    const first = await request(app).patch('/api/bookings/101').send({ status: 'confirmed' });
+    const first = await request(app).patch('/api/bookings/101').set('Authorization', ADMIN).send({ status: 'confirmed' });
 
     db.query
       .mockResolvedValueOnce([[dbRow({ status: 'confirmed' })]])
       .mockResolvedValueOnce([{ affectedRows: 1 }])
       .mockResolvedValueOnce([[dbRow({ status: 'confirmed' })]]);
-    const second = await request(app).patch('/api/bookings/101').send({ status: 'confirmed' });
+    const second = await request(app).patch('/api/bookings/101').set('Authorization', ADMIN).send({ status: 'confirmed' });
 
     expect(first.body.status).toBe(second.body.status);
   });
