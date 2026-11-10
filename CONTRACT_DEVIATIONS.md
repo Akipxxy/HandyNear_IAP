@@ -83,3 +83,14 @@ Context: our lecturer rejected the savings-goals integration with MoneyMentor; w
 ### Notes
 - No breaking changes for existing consumers; ShieldBox can ignore the new fields.
 - `docs/index.html` was rebuilt from the updated `openapi.yaml`.
+
+
+## 10 November 2026 – Partner API key, rate limit and stats (`openapi.yaml` 1.1.0 → 1.2.0)
+
+**This one is not backwards compatible for ShieldBox (Team 8), and we are saying so.**
+
+- **Breaking:** `GET /api/bookings` and `GET /api/bookings/{id}` now require an `X-API-Key` header (or an admin login). Without it: `401 API_KEY_REQUIRED`; with a wrong key: `401 INVALID_API_KEY`. Reason: these routes return customer names and phones to anyone. Team 8 needs a key from us; we issue one per partner, privately.
+- **Unchanged:** `GET /api/handymen` and `GET /api/handymen/{id}` stay public. Response shapes of every route are unchanged.
+- **Added:** general rate limit on `/api` (default 100 per minute per key or IP; `429 RATE_LIMITED` with `Retry-After`), admin-only `GET /api/stats`, and a one-line request log.
+- **Also true since the login change (not yet listed above):** `POST /api/bookings` and `PATCH /api/bookings/{id}` need a customer or admin login, and the old optional `WALLET_API_KEY` guard was removed in favour of login checks on `/api/customers/*`.
+- No `Deprecation` header or sunset period was used: the old open behaviour was a privacy gap, not a feature to keep.

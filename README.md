@@ -9,7 +9,23 @@ HandyNear is a REST API for discovering local handymen in Nairobi and managing s
 
 ## Authentication
 
-Handymen and bookings endpoints are open. The customer and wallet endpoints (`/api/customers/...`) have an **optional** API-key guard: if `WALLET_API_KEY` is set in `server/.env`, every `/api/customers` call must send the same value in an `X-API-Key` header, otherwise it gets `401 UNAUTHORIZED`. We leave `WALLET_API_KEY` unset for now, so no key is needed. Customer "login" is simulated: a client just picks a customer ID (see the honesty note in the Wallet section).
+| Who | How | What they can reach |
+|---|---|---|
+| Anyone | nothing | `GET /api/handymen`, `GET /api/handymen/{id}` |
+| Partner (Team 8 ShieldBox) | `X-API-Key: <their key>` header | `GET /api/bookings`, `GET /api/bookings/{id}` |
+| Customer | login (`POST /api/auth/login`), then `Authorization: Bearer <token>` | their own wallet and bookings (`/api/bookings/mine`, `POST /api/bookings`) |
+| Admin | `POST /api/auth/admin/login`, then the bearer token | everything, including `PATCH /api/bookings/{id}` and `GET /api/stats` |
+
+- **Partner keys** live in `server/.env` as `PARTNER_API_KEYS=team8:<key>` (comma separated for more partners). A missing key returns `401 API_KEY_REQUIRED`; a wrong key returns `401 INVALID_API_KEY`. Keys are never logged: logs and `/api/stats` show only a label like `key-1a2b3c`.
+- **Rate limit:** every `/api` route allows 100 requests per minute per key (or per IP when no key). Over the limit: `429 RATE_LIMITED` with a `Retry-After` header. Tune with `RATE_LIMIT_MAX` and `RATE_LIMIT_WINDOW_MS`. Failed logins have their own stricter limit (10 per 15 minutes per IP).
+- **Monitoring:** every request prints one line, for example `2026-11-10T05:12:01.220Z GET /api/bookings 401 3ms caller=none`. The caller is `key-xxxxxx`, `admin`, `customer` or `none`. Admins can read totals, error rate and the slowest route at `GET /api/stats` (numbers reset when the server restarts).
+
+Try it (PowerShell, from `server/`; replace the placeholder with the key you were given):
+
+```powershell
+curl.exe -i http://127.0.0.1:5000/api/bookings                                   # 401 API_KEY_REQUIRED
+curl.exe -i -H "X-API-Key: <your-key>" http://127.0.0.1:5000/api/bookings        # 200
+```
 
 ## Run it locally (from a clean clone)
 
@@ -74,7 +90,9 @@ PARTNER_REGISTER_BOOKINGS=true
 | `PARTNER_CUSTOMER_TOKEN` | Customer bearer token (JWT) sent to MoneyMentor. They expire after 1 hour and are issued by Team 6's admin CLI. Our server holds one token, so only that customer's wallet works against the real MoneyMentor. Development: a dummy value. |
 | `PARTNER_CUSTOMER_ID` | The customer the configured token belongs to (`1`). Used by the `server/wallet-check.js` helper script. |
 | `PARTNER_REGISTER_BOOKINGS` | `true` makes `POST /api/bookings` (with a `customerId`) also register the booking with MoneyMentor so it can be paid later. A failed registration is only logged. Leave unset or `false` to skip it. |
-| `WALLET_API_KEY` | Optional. If set, `/api/customers/*` requires an `X-API-Key` header with this value. Unset in development. |
+| `PARTNER_API_KEYS` | Keys we issue to partner teams, as `name:key` pairs separated by commas. Required for `GET /api/bookings*`. Generate each key with `node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`. |
+| `RATE_LIMIT_MAX`, `RATE_LIMIT_WINDOW_MS` | General rate limit. Defaults: 100 requests per 60000 ms. |
+| `LOG_REQUESTS` | Set to `false` to silence the per-request log line. |
 
 Never commit `server/.env` and never paste real keys, tokens or tunnel URLs into the repo or into chat. Restart the server after changing `.env`.
 
@@ -146,10 +164,10 @@ An unknown id returns `404` (see Errors).
 ### GET /api/bookings
 List bookings. Optional query parameters: `status` (`pending`, `confirmed`, `completed` or `cancelled`) and `handymanId` (a positive integer). Every booking also carries `customerId`, `priceCents` (integer cents) and `paymentStatus` (`unpaid` or `paid`); `customerId` and `priceCents` are `null` for bookings made without a customer. These three fields are optional for consumers and can be ignored.
 
-Example for ShieldBox (a handyman's completed bookings): `curl "http://127.0.0.1:5000/api/bookings?handymanId=1&status=completed"`.
+**Needs `X-API-Key` (partner) or an admin login**, because it returns customer names and phones. Example for ShieldBox (a handyman's completed bookings): `curl.exe -H "X-API-Key: <your-key>" "http://127.0.0.1:5000/api/bookings?handymanId=1&status=completed"`.
 
 ```bash
-curl http://127.0.0.1:5000/api/bookings
+curl -H "X-API-Key: <your-key>" http://127.0.0.1:5000/api/bookings
 ```
 Response `200`:
 ```json

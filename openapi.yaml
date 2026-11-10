@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: HandyNear API (Team 7)
-  version: 1.1.0
+  version: 1.2.0
   description: |
     Handyman service discovery and booking management API for HandyNear, plus a simulated customer wallet.
 
@@ -9,6 +9,12 @@ info:
     booking is marked `completed`, the server automatically pays the handyman from the customer's wallet.
     Bookings gained three optional response fields (`customerId`, `priceCents`, `paymentStatus`). Nothing was
     removed or renamed, so existing consumers (for example ShieldBox) keep working.
+
+    **What changed in 1.2.0 (10 Nov 2026).** `GET /api/bookings` and `GET /api/bookings/{id}` now require a partner
+    `X-API-Key` header (or an admin login), because they return customer names and phones. A missing or wrong key
+    returns `401`. Every `/api` route is rate limited (default 100 requests per minute per key or IP; `429` with
+    `Retry-After`). New admin-only `GET /api/stats`. `GET /api/handymen` stays public. Customers and the admin also
+    log in with a bearer token (`/api/auth/*`); `POST`/`PATCH` on bookings need that login.
 
     **Money rules.**
     - All amounts are **integer cents** (100 cents = KES 1). Display KES = cents / 100.
@@ -30,6 +36,8 @@ tags:
     description: Create bookings and update their status. Completing a booking that has a customer pays the handyman from the customer's wallet.
   - name: Customers
     description: Create and look up customers. This is HandyNear's own feature, not a ShieldBox need.
+  - name: Monitoring
+    description: Admin-only traffic numbers.
   - name: Wallet
     description: Simulated customer wallet, held by MoneyMentor Kenya (Team 6). All amounts are integer cents and all money is simulated.
 paths:
@@ -100,6 +108,9 @@ paths:
     get:
       tags: [Bookings]
       operationId: listBookings
+      security:
+        - partnerApiKey: []
+        - bearerAuth: []
       summary: Retrieve all bookings
       description: |
         Returns every booking, optionally filtered. Each booking now also carries `customerId`, `priceCents`
@@ -123,6 +134,17 @@ paths:
             example: 12
           description: Return only bookings for this handyman.
       responses:
+        '401':
+          description: No `X-API-Key` and no login (`API_KEY_REQUIRED`), or the key is not valid (`INVALID_API_KEY`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: API_KEY_REQUIRED
+                message: "Send an X-API-Key header, or log in."
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '200':
           description: List of bookings.
           content:
@@ -232,6 +254,9 @@ paths:
     get:
       tags: [Bookings]
       operationId: getBooking
+      security:
+        - partnerApiKey: []
+        - bearerAuth: []
       summary: Retrieve a single booking by ID
       parameters:
         - name: id
@@ -242,6 +267,17 @@ paths:
             example: 101
           description: Unique identifier of the booking record.
       responses:
+        '401':
+          description: No `X-API-Key` and no login (`API_KEY_REQUIRED`), or the key is not valid (`INVALID_API_KEY`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: API_KEY_REQUIRED
+                message: "Send an X-API-Key header, or log in."
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '200':
           description: Booking details retrieved successfully.
           content:
@@ -353,6 +389,51 @@ paths:
         '502':
           $ref: '#/components/responses/PartnerUnavailable'
 
+  /api/stats:
+    get:
+      tags: [Monitoring]
+      operationId: getStats
+      summary: Traffic numbers since the server started (admin only)
+      description: |
+        Total requests, error rate, per-route counts and average/max milliseconds, and the slowest route.
+        In memory: resets when the server restarts. Contains no keys, tokens or request bodies.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current numbers.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  since: { type: string, format: date-time }
+                  totalRequests: { type: integer }
+                  errorCount: { type: integer }
+                  errorRate: { type: number, description: "errorCount / totalRequests, 0 to 1" }
+                  byStatus: { type: object, additionalProperties: { type: integer } }
+                  slowestRoute:
+                    type: object
+                    nullable: true
+                    properties: { route: { type: string }, avgMs: { type: number } }
+                  routes:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        route: { type: string, example: "GET /api/bookings" }
+                        count: { type: integer }
+                        errors: { type: integer }
+                        avgMs: { type: number }
+                        maxMs: { type: number }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Logged in, but not as the admin.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/customers:
     post:
       tags: [Customers]
@@ -627,6 +708,18 @@ paths:
 
 components:
   securitySchemes:
+    partnerApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: |
+        A partner key (one per partner team, issued privately by Team 7; never put one in this repo). Required on
+        `GET /api/bookings` and `GET /api/bookings/{id}`. A request with a key that is not valid gets `401 INVALID_API_KEY`.
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Login token from `POST /api/auth/login` (customer) or `POST /api/auth/admin/login` (admin). Expires after 2 hours.
     walletApiKey:
       type: apiKey
       in: header
@@ -648,6 +741,18 @@ components:
         example: 1
 
   responses:
+    RateLimited:
+      description: Too many requests from this key or IP. Wait `Retry-After` seconds.
+      headers:
+        Retry-After:
+          schema: { type: integer }
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: RATE_LIMITED
+            message: "Too many requests. Try again shortly."
     Unauthorized:
       description: The server requires an API key (`WALLET_API_KEY` is set) and the `X-API-Key` header is missing or wrong.
       content:

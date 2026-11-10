@@ -3,6 +3,7 @@ const router = express.Router();
 const db = require('../db');
 const mm = require('../moneymentor');
 const { requireRole } = require('../auth');
+const { requirePartnerOrRole } = require('../apiKeys');
 
 const ALLOWED_STATUSES = ['pending', 'confirmed', 'completed', 'cancelled'];
 
@@ -103,7 +104,8 @@ router.post('/', requireRole('customer', 'admin'), async (req, res) => {
 });
 
 // Get all bookings — supports the contract's status and handymanId filters
-router.get('/', async (req, res) => {
+// Partners (Team 8) send X-API-Key; our own app uses the admin login. Customers use /mine.
+router.get('/', requirePartnerOrRole('admin'), async (req, res) => {
   const { status, handymanId } = req.query;
 
   if (status !== undefined && !ALLOWED_STATUSES.includes(status)) {
@@ -157,7 +159,7 @@ router.get('/mine', requireRole('customer'), async (req, res) => {
 });
 
 // Get a single booking by ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', requirePartnerOrRole('admin'), async (req, res) => {
   const { id } = req.params;
   try {
     const [rows] = await db.query('SELECT * FROM bookings WHERE id = ?', [id]);

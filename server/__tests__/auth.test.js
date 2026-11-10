@@ -131,9 +131,10 @@ describe('tokens', () => {
     expect((await request(app).get('/api/auth/me')).status).toBe(401);
   });
 
-  it('the public ShieldBox reads stay open (no login needed)', async () => {
+  it('the handymen list stays public; bookings reads need a partner key or admin login', async () => {
     db.query.mockResolvedValue([[]]);
-    expect((await request(app).get('/api/bookings?handymanId=1&status=completed')).status).toBe(200);
     expect((await request(app).get('/api/handymen')).status).toBe(200);
+    expect((await request(app).get('/api/bookings?handymanId=1&status=completed')).status).toBe(401);
+    expect((await request(app).get('/api/bookings?handymanId=1&status=completed').set(require('../test-helpers').partnerKey())).status).toBe(200);
   });
 });

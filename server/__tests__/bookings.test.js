@@ -1,6 +1,7 @@
 jest.mock('../db', () => ({ query: jest.fn() }));
 const db = require('../db');
 const ADMIN = require('../test-helpers').admin();
+const KEY = require('../test-helpers').partnerKey();
 const request = require('supertest');
 const app = require('../app');
 
@@ -66,7 +67,7 @@ describe('POST /api/bookings', () => {
 describe('GET /api/bookings', () => {
   it('returns 200 with mapped bookings (happy path)', async () => {
     db.query.mockResolvedValueOnce([[dbRow()]]);
-    const res = await request(app).get('/api/bookings');
+    const res = await request(app).get('/api/bookings').set(KEY);
     expect(res.status).toBe(200);
     expect(res.body[0]).toHaveProperty('handymanId', 12);
     expect(res.body[0]).toHaveProperty('serviceDescription');
@@ -74,14 +75,14 @@ describe('GET /api/bookings', () => {
 
   it('filters by status using a query parameter', async () => {
     db.query.mockResolvedValueOnce([[]]);
-    await request(app).get('/api/bookings?status=completed');
+    await request(app).get('/api/bookings?status=completed').set(KEY);
     const [sql, params] = db.query.mock.calls[0];
     expect(sql).toMatch(/WHERE status = \?/);
     expect(params).toContain('completed');
   });
 
   it('rejects an invalid status filter with 400', async () => {
-    const res = await request(app).get('/api/bookings?status=not-a-real-status');
+    const res = await request(app).get('/api/bookings?status=not-a-real-status').set(KEY);
     expect(res.status).toBe(400);
   });
 });
@@ -89,14 +90,14 @@ describe('GET /api/bookings', () => {
 describe('GET /api/bookings/:id', () => {
   it('returns 200 with the matching booking (happy path)', async () => {
     db.query.mockResolvedValueOnce([[dbRow()]]);
-    const res = await request(app).get('/api/bookings/101');
+    const res = await request(app).get('/api/bookings/101').set(KEY);
     expect(res.status).toBe(200);
     expect(res.body.id).toBe(101);
   });
 
   it('returns 404 with the exact contract error shape when not found', async () => {
     db.query.mockResolvedValueOnce([[]]);
-    const res = await request(app).get('/api/bookings/9999');
+    const res = await request(app).get('/api/bookings/9999').set(KEY);
     expect(res.status).toBe(404);
     expect(res.body).toHaveProperty('code', 'RESOURCE_NOT_FOUND');
     expect(res.body).not.toHaveProperty('error');
