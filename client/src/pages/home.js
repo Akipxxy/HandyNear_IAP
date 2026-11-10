@@ -83,7 +83,7 @@ const Home = () => {
                     <div className="container">
                         <h2>Ready to Get Started?</h2>
                         <p>Join hundreds of homeowners who trust HandyNear for fast, reliable repairs.</p>
-                        <a href="/contact" className="btn-primary">Post a Job Today</a>
+                        <a href="/browse" className="btn-primary">Post a Job Today</a>
                     </div>
                 </section>
 

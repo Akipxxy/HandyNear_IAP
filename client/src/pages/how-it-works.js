@@ -20,8 +20,8 @@ const HowItWorks = () => {
             <main>
                 <header class="hiw-header">
                     <div class="container">
-                        <h1>How HandyNear Works</h1>
-                        <p>Your home project or quick fix is just 4 simple steps away.</p>
+                        <h1 id = "main-header">How HandyNear Works</h1>
+                        <p id = "description">Your home project or quick fix is just 4 simple steps away.</p>
                     </div>
                 </header>
 

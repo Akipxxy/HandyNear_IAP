@@ -7,6 +7,12 @@
 .small-container {
     max-width: 800px;
 }
+#main-header{
+    color:#222
+}
+#description{
+    color:bisque
+}
 
 /* 1. Page Header Styling */
 .hiw-header {
