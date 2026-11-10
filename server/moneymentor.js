@@ -22,6 +22,10 @@ function mapStatus(partnerStatus) {
   return [502, 'PARTNER_UNAVAILABLE'];
 }
 
+// Defaults: 1500 ms reads, 5000 ms writes. Raise them in .env for a slow tunnel.
+const readTimeout = () => Number(process.env.PARTNER_READ_TIMEOUT_MS) || 1500;
+const writeTimeout = () => Number(process.env.PARTNER_WRITE_TIMEOUT_MS) || 5000;
+
 async function call(method, path, { body, idempotencyKey } = {}) {
   const base = (process.env.PARTNER_URL || '').replace(/\/+$/, '');
   const apiKey = process.env.PARTNER_X_API_KEY;
@@ -44,7 +48,7 @@ async function call(method, path, { body, idempotencyKey } = {}) {
     res = await fetchWithRetry(
       `${base}/api${path}`,
       { method, headers, body: body === undefined ? undefined : JSON.stringify(body) },
-      { timeoutMs: method === 'GET' ? 1500 : 5000, retries: 2, delayMs: 200 }
+      { timeoutMs: method === 'GET' ? readTimeout() : writeTimeout(), retries: 2, delayMs: 200 }
     );
   } catch (err) {
     const reason = err.name === 'TimeoutError' ? 'timeout' : (err.cause?.code || err.message);
