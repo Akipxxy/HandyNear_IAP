@@ -12,7 +12,7 @@ HandyNear is a REST API for discovering local handymen in Nairobi and managing s
 | Who | How | What they can reach |
 |---|---|---|
 | Anyone | nothing | `GET /api/handymen`, `GET /api/handymen/{id}` |
-| Partner (Team 8 ShieldBox) | `X-API-Key: <their key>` header | `GET /api/bookings`, `GET /api/bookings/{id}` |
+| Partner (Team 8 ShieldBox) | `X-API-Key: 6bf2ce03adb328e53b04a4355c7b70e4ae8b26d579e6e904` header | `GET /api/bookings`, `GET /api/bookings/{id}` |
 | Customer | login (`POST /api/auth/login`), then `Authorization: Bearer <token>` | their own wallet and bookings (`/api/bookings/mine`, `POST /api/bookings`) |
 | Admin | `POST /api/auth/admin/login`, then the bearer token | everything, including `PATCH /api/bookings/{id}` and `GET /api/stats` |
 
