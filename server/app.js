@@ -3,9 +3,16 @@ const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
+app.disable('x-powered-by');
 
 app.use(cors());
 app.use(express.json());
+
+// Week 12 monitoring and Week 9 rate limit: before every route
+const { requestLog } = require('./monitor');
+const { rateLimit } = require('./rateLimit');
+app.use(requestLog);
+app.use('/api', rateLimit);
 
 app.get('/', (req, res) => {
   res.send('API is running');
@@ -17,8 +24,14 @@ app.use('/api/handymen', handymenRoutes);
 const bookingRoutes = require('./routes/bookings');
 app.use('/api/bookings', bookingRoutes);
 
-const partnerRoutes = require('./routes/partner');
-app.use('/api/partner', partnerRoutes);
+const customerRoutes = require('./routes/customers');
+app.use('/api/customers', customerRoutes);
+
+const statsRoutes = require('./routes/stats');
+app.use('/api/stats', statsRoutes);
+
+const authRoutes = require('./routes/auth');
+app.use('/api/auth', authRoutes);
 
 // JSON error responses instead of HTML stack traces
 app.use((err, req, res, next) => {

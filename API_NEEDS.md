@@ -2,7 +2,7 @@
 
 ## Context
 - **Downstream partner (consumes our API):** Team 8 — ShieldBox (anonymous crime/safety reporting app)
-- **Upstream partner (we consume their API):** Team 6 — MoneyMentor Kenya (financial literacy calculators)
+- **Upstream partner (we consume their API):** Team 6 — MoneyMentor Kenya (financial literacy calculators; since November 2026 we use their simulated customer wallet instead, see the upstream section below)
 
 ## Needs Statements
 
@@ -29,6 +29,21 @@
 - Flagged/report status (original statement 3) → ❌ **resolved as dropped**, not just flagged. It doesn't map to anything in our audit — HandyNear has no "flags" or "reports" resource — and the direction was backwards anyway (a flag would be something ShieldBox computes from its own reports, not something HandyNear could ever supply). Kept in the Reflection below as a design discussion, not resubmitted as a need.
 
 ## Upstream Exploration — MoneyMentor Kenya (Informational Only, Not Graded Needs Statements)
+
+> **Superseded in November 2026:** the savings-goals direction described under "Earlier exploration" below was rejected by our lecturer (customers could see handymen's savings) and replaced by a simulated customer wallet. The earlier text is kept unchanged as dated evidence. Team 6's savings-goals and investment-projections routes now return 404. See "Current upstream need: customer wallet" first, `CONTRACT_QUESTIONS.md` (wallet questions), `CONTRACT_DEVIATIONS.md` (8 November 2026) and `INTEGRATION_LOG.md`.
+
+### Current upstream need: customer wallet (November 2026)
+
+*Informational, not a graded needs statement (the graded ones above come from ShieldBox).*
+
+- **Need:** HandyNear needs MoneyMentor to hold a simulated wallet per customer so that a customer can top up credit and, when a handyman finishes a job, the handyman is paid from that wallet automatically. The money (balances and ledger) lives at MoneyMentor; HandyNear stores only customers, a booking price and a payment status.
+- **Read vs. write:** **read** a customer's wallet balance and transaction history; **write** top-ups, the registration of our bookings (so MoneyMentor knows the price and owner) and the payment of a completed booking.
+- **Units and safety:** all amounts are integer cents (100 cents = KES 1) and all money is simulated. Top-ups and payments must carry an `Idempotency-Key` so a retry never double charges.
+- **Frequency:** a balance read each time the wallet is shown (never cached); a top-up only on a user action; one payment per completed booking.
+- **Auth:** `X-API-Key` (identifies HandyNear) plus a customer bearer JWT that lasts 1 hour. Only our server calls MoneyMentor, never the browser.
+- **Status:** Team 6 agreed to support it and shipped contract 2.0.0 (commit `66aff41`, 5 Nov: wallet endpoints, cents, idempotency, customer tokens) and 2.1.0 (commit `9023392`, 7 Nov: `PUT /api/bookings/{id}` booking registration).
+
+### Earlier exploration (superseded)
 
 *Note: the statements below describe what HandyNear might want as a **consumer** of MoneyMentor's API. Per the handout, the graded needs statements in this document must come from Part B (what our downstream partner, ShieldBox, needs from us) — so this section is kept separate for reference and team discussion, not submitted as part of the required 3–6 statements.*
 

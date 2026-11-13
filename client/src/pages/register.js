@@ -24,7 +24,7 @@ const Register = () => {
   e.preventDefault();
   console.log(formData);
   try{
-    const response = await fetch('http://localhost:5000/api/handymen', {
+    const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/handymen`, {
       method: 'POST',
       headers:{ 'Content-Type': 'application/json'},
       body: JSON.stringify(formData)

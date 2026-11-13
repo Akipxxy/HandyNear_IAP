@@ -61,3 +61,21 @@ All three suggestions share the same shape: add something to hit a number rather
 because a need calls for it — the exact failure mode the handout opens with, and the
 same reasoning our reviewer approved us for applying to the write-endpoint gap. Table
 and endpoint count unchanged from the draft.
+
+## Customer wallet endpoints (HandyNear's own feature, not a ShieldBox need)
+
+The three endpoints above are the only ones ShieldBox needs, and they are unchanged. The endpoints below were added in November 2026 for HandyNear's own simulated customer wallet (approved by our lecturer after the savings-goals idea was rejected). They do **not** trace to a needs statement in `API_NEEDS.md` and ShieldBox does not use them. The "Known gap" section above describes the Week 2 situation (3 GET endpoints for ShieldBox) and is kept as history. All amounts are integer cents and all money is simulated; the money lives at MoneyMentor (Team 6).
+
+| Method | Path | Purpose |
+|---|---|---|
+| POST | `/api/customers` | Create a customer (`name`, `phone`, optional `email`). |
+| GET | `/api/customers/{id}` | Read one customer. There is no list endpoint. |
+| GET | `/api/customers/{id}/wallet` | Read the wallet balance (`balanceCents`), live from MoneyMentor. |
+| GET | `/api/customers/{id}/wallet/transactions` | Read the ledger, newest first. |
+| POST | `/api/customers/{id}/wallet/topups` | Add simulated credit. Requires an `Idempotency-Key` header; body exactly `{"amountCents": ...}`. |
+| PATCH | `/api/bookings/{id}` | Existing route. Changing the status **to** `completed` on a booking that has a customer now pays the handyman from the customer's wallet first (`409`/`502` leave the booking unchanged). |
+| POST | `/api/bookings` | Existing route. New optional `customerId` and `durationHours`; with a customer the server stores `priceCents`. |
+
+Booking responses also gained `customerId`, `priceCents` and `paymentStatus`; ShieldBox can ignore them.
+
+**REST checklist for these rows:** nouns not verbs (`customers`, `wallet`, `topups`, `transactions`); verbs are accurate (POST creates a customer or a top-up, GET reads). Nesting is deeper than one level (`/api/customers/{id}/wallet/transactions`) because a wallet belongs to exactly one customer and transactions belong to that wallet; we did not flatten it because it is not a ShieldBox endpoint and the owner is part of the identity of the data. Identifiers are in the path; the idempotency key is a header, not part of the URL. Our own reviewer has not audited this section.
